@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>皮克敏座標分配系統 V32</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary-color: #2d5a27; --unassigned-color: #888888; --disabled-color: #bbbbbb;
+            --accent-color: #4CAF50; --bg-color: #f0f4f8; --copy-group-color: #ff9800;
+            --custom-color: #9c27b0; --gpx-color: #00acc1; --danger-color: #d32f2f;
+        }
+        body { font-family: -apple-system, "Helvetica Neue", sans-serif; background: var(--bg-color); padding: 15px; margin: 0; }
+        .container { max-width: 1150px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .header-section { margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        h2 { color: var(--primary-color); text-align: center; margin: 0 0 10px 0; }
+        .admin-panel { display: flex; flex-wrap: wrap; gap: 15px; background: #f9f9f9; padding: 15px; border-radius: 10px; }
+        .admin-group { flex: 1; min-width: 250px; }
+        label { font-size: 13px; font-weight: bold; color: #666; display: block; margin-bottom: 5px; }
+        select, textarea { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; outline: none; box-sizing: border-box; }
+        .field-select { border: 2px solid var(--accent-color); font-weight: bold; }
+        textarea { height: 100px; resize: vertical; margin-bottom: 5px; font-family: monospace; }
+        .btn-group { display: flex; flex-wrap: wrap; gap: 8px; }
+        .btn-assign { flex: 2; min-width: 100px; background: var(--primary-color); color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-copy-group { flex: 1.5; min-width: 100px; background: var(--copy-group-color); color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-custom { background: var(--custom-color); color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
+        .btn-gpx { background: var(--gpx-color); color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 8px; }
+        .btn-utility { flex: 1; min-width: 70px; background: #666; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .btn-danger { background: var(--danger-color); color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
+        
+        .stats-info { font-size: 12px; margin-top: 5px; color: #555; }
+        .table-container { margin-top: 20px; border: 1px solid #eee; border-radius: 8px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 650px; }
+        th { background: #e8f5e9; color: var(--primary-color); position: sticky; top: -20px; z-index: 10; font-size: 13px; box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #eee; text-align: left; }
+        
+        .check-col { width: 40px; text-align: center; }
+        .no-col { width: 40px; text-align: center; font-weight: bold; }
+        .member-col { white-space: nowrap; width: 1%; min-width: 130px; }
+        .assigned-name { font-weight: bold; color: white; padding: 3px 12px; border-radius: 4px; font-size: 13px; display: inline-block; white-space: nowrap; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+        .unassigned-label { color: var(--unassigned-color); font-style: italic; font-size: 12px; white-space: nowrap; font-weight: 500; }
+
+        #map { height: 500px; width: 100%; border-radius: 12px; border: 1px solid #ccc; z-index: 1; margin: 10px 0 50px 0;}
+        .map-number-icon { color: white; border-radius: 50%; width: 24px; height: 24px; line-height: 24px; text-align: center; font-size: 11px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .row-disabled { background-color: #f2f2f2; color: #ccc; }
+        .coord-text { font-family: monospace; font-size: 12px; white-space: nowrap; }
+        .copy-btn { background: var(--accent-color); color: white; border: none; padding: 7px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        
+        @media (max-width: 800px) { .admin-panel { flex-direction: column; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-section">
+        <h2>皮克敏座標系統 V32</h2>
+        <div class="admin-panel">
+            <div class="admin-group">
+                <label>📍 1. 選擇花田</label>
+                <select id="fieldSelector" class="field-select" onchange="resetAndRender()"></select>
+                <div class="btn-group" style="margin-top:10px;">
+                    <button class="btn-utility" onclick="toggleAllChecks(true)">全選座標</button>
+                    <button class="btn-utility" onclick="toggleAllChecks(false)">取消全選</button>
+                </div>
+                <button class="btn-danger" onclick="checkAndClearDuplicates()">🔍 檢查並清除重複座標</button>
+            </div>
+            <div class="admin-group">
+                <label>👥 2. 分配名單 (數量 名稱)</label>
+                <textarea id="batchMemberInput" placeholder="5 小明&#10;10 阿華" oninput="updateStats()"></textarea>
+                <div id="statsDisplay" class="stats-info">需求: 0 | 可用: 0</div>
+                <div class="btn-group" style="margin-top:5px;">
+                    <button class="btn-assign" onclick="autoAssign()">路徑連續自動分配</button>
+                    <button class="btn-copy-group" onclick="copyForGroup()">複製轉貼格式</button>
+                </div>
+            </div>
+            <div class="admin-group">
+                <label>📝 3. 臨時增加座標 (GPX 或 手動)</label>
+                <input type="file" id="gpxFile" accept=".gpx" style="display:none;" onchange="importGPX(this)">
+                <button class="btn-gpx" onclick="document.getElementById('gpxFile').click()">📂 載入 GPX 檔案</button>
+                <textarea id="customCoordsInput" placeholder="緯度, 經度 (一行一個)"></textarea>
+                <button class="btn-custom" onclick="loadCustomCoords()">載入臨時自定義花田</button>
+            </div>
+        </div>
+    </div>
+    <div class="table-container">
+        <table id="coordTable">
+            <thead>
+                <tr>
+                    <th class="check-col">分配?</th>
+                    <th class="no-col">#</th>
+                    <th width="80">動作</th>
+                    <th class="member-col">分配成員</th>
+                    <th>座標位置</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+    <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    let database = {
+        "日本東京立川市24": ["35.738976,139.363113", "35.738775,139.36222", "35.739432,139.361339", "35.74103,139.361386", "35.741353,139.361416", "35.741425,139.362769", "35.742282,139.362017", "35.742406,139.363096", "35.741954,139.363753", "35.742374,139.364277", "35.743207,139.365113", "35.744917,139.365552", "35.745506,139.367725", "35.746043,139.36899", "35.741353,139.368559", "35.739983,139.369169", "35.740995,139.366238", "35.74107,139.364442", "35.740451,139.363688", "35.739481,139.364209", "35.739038,139.364704", "35.737899,139.365006", "35.737174,139.367147", "35.736567,139.36356"],
+        "美國傑克遜維爾佛羅里達42": ["30.387669,-81.405249", "30.388264,-81.403962", "30.392678,-81.404505", "30.389852,-81.402799", "30.390817,-81.402464", "30.392075,-81.402294", "30.390058,-81.401297", "30.388973,-81.400518", "30.387576,-81.401259", "30.387878,-81.39878", "30.388352,-81.39943", "30.390399,-81.399413", "30.393208,-81.396911", "30.392332,-81.396805", "30.391654,-81.395593", "30.390796,-81.395979", "30.389525,-81.396605", "30.389397,-81.395922", "30.388111,-81.396604", "30.387895,-81.395964", "30.38773,-81.396699", "30.386448,-81.396866", "30.383904,-81.397437", "30.382479,-81.39692", "30.382,-81.397229", "30.383237,-81.398276", "30.383037,-81.399239", "30.382551,-81.400216", "30.381866,-81.400611", "30.379343,-81.399531", "30.377492,-81.40049", "30.376401,-81.404344", "30.375567,-81.407235", "30.37825,-81.404697", "30.378604,-81.404809", "30.378567,-81.404145", "30.379516,-81.402085", "30.37958,-81.401418", "30.381902,-81.404395", "30.383115,-81.404865", "30.383813,-81.406048", "30.383803,-81.40347"],
+        "南韓首爾26": ["37.53227,126.981554", "37.531552,126.98111", "37.531535,126.980733", "37.532098,126.980486", "37.533717,126.981542", "37.536018,126.981034", "37.536217,126.980843", "37.537379,126.979907", "37.537883,126.978551", "37.53647,126.9822", "37.536667,126.982867", "37.537617,126.982901", "37.538436,126.982983", "37.540355,126.98417", "37.538049,126.985284", "37.536362,126.984716", "37.536087,126.984725", "37.535586,126.985092", "37.532243,126.983183", "37.528693,126.98581", "37.525965,126.98486", "37.526428,126.982961", "37.526385,126.981586", "37.525732,126.980151", "37.526553,126.979889", "37.528385,126.981007"],
+        "古巴17": ["19.92477,-75.1352", "19.925928,-75.136141", "19.925776,-75.137389", "19.924466,-75.13819", "19.924013,-75.136755", "19.921146,-75.137189", "19.919939,-75.136233", "19.921085,-75.134491", "19.91961,-75.132254", "19.918642,-75.134809", "19.916379,-75.133743", "19.916995,-75.135785", "19.918439,-75.136325", "19.918,-75.137603", "19.918967,-75.13951", "19.917198,-75.138295", "19.915664,-75.139625"],
+        "美國阿靈頓19": ["38.876943,-77.078173", "38.877741,-77.078565", "38.878167,-77.080036", "38.876745,-77.080308", "38.875947,-77.082051", "38.879833,-77.080755", "38.879743,-77.082073", "38.880578,-77.078915", "38.880783,-77.07974", "38.881146,-77.081139", "38.881893,-77.08312", "38.881581,-77.084057", "38.88247,-77.083835", "38.884024,-77.083434", "38.885463,-77.082064", "38.884147,-77.08109", "38.884291,-77.079704", "38.885288,-77.07814", "38.884434,-77.077864"],
+        "日本福生24": ["35.745167,139.34205", "35.745041,139.340578", "35.744407,139.339785", "35.744318,139.34101", "35.744395,139.342448", "35.743012,139.339143", "35.742978,139.34143", "35.742133,139.340475", "35.741617,139.341011", "35.74094,139.340946", "35.742625,139.343556", "35.742547,139.34434", "35.740053,139.341648", "35.738599,139.340096", "35.737132,139.340718", "35.737774,139.341109", "35.738459,139.342224", "35.737755,139.34314", "35.737515,139.34465", "35.737336,139.346845", "35.735833,139.344333", "35.734962,139.344647", "35.740183,139.344742", "35.739723,139.345764"]
+    };
+
+    let currentAssignMap = {}, memberColorMap = {}; 
+    let map, markersLayer = L.layerGroup(), lastGpxName = "臨時區域";
+    const colorPalette = ['#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#E53935', '#03A9F4', '#00BCD4', '#009688', '#43A047', '#8BC34A', '#CDDC39', '#FFB300', '#FB8C00', '#F4511E', '#795548', '#607D8B', '#111111'];
+
+    function init() {
+        const sel = document.getElementById('fieldSelector');
+        for (let name in database) {
+            let opt = document.createElement('option'); opt.value = name; opt.textContent = name; sel.appendChild(opt);
+        }
+        map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        markersLayer.addTo(map);
+        renderTable(); updateStats();
+    }
+
+    function getDist(c1, c2) {
+        const [lat1, lon1] = c1.split(',').map(Number);
+        const [lat2, lon2] = c2.split(',').map(Number);
+        return Math.sqrt(Math.pow(lat1 - lat2, 2) + Math.pow(lon1 - lon2, 2));
+    }
+
+    // 🏆 V32 核心優化邏輯：全自動最優連續路徑分配 (不限名單順序)
+    function autoAssign() {
+        const { demand, available } = updateStats();
+        if (demand === 0) return alert("請輸入名單！");
+        if (demand > available) return alert(`❌ 座標不足！需求 ${demand} 但可用僅 ${available}`);
+
+        const fieldName = document.getElementById('fieldSelector').value;
+        const coords = database[fieldName];
+        const checks = document.querySelectorAll('.row-check');
+        
+        // 1. 取得所有勾選的可用座標索引池
+        let pool = [];
+        checks.forEach((c, i) => { if (c.checked) pool.push(i); });
+
+        // 2. 解析需求名單
+        let requirements = [];
+        document.getElementById('batchMemberInput').value.split('\n').forEach(line => {
+            const parts = line.trim().split(/\s+/);
+            if (parts.length >= 2) requirements.push({ count: parseInt(parts[0]), name: parts.slice(1).join(' ') });
+        });
+
+        currentAssignMap = {}; memberColorMap = {};
+        let colorIdx = 0;
+        
+        // 3. 生成最佳地理連續路徑 (一條龍順序)
+        let orderedPathIndices = [];
+        let currentIdx = pool.shift(); // 從池子第一個點開始
+        orderedPathIndices.push(currentIdx);
+
+        while (pool.length > 0) {
+            let nearestInPoolIdx = 0;
+            let minDist = Infinity;
+            for (let i = 0; i < pool.length; i++) {
+                let d = getDist(coords[currentIdx], coords[pool[i]]);
+                if (d < minDist) { minDist = d; nearestInPoolIdx = i; }
+            }
+            currentIdx = pool.splice(nearestInPoolIdx, 1)[0];
+            orderedPathIndices.push(currentIdx);
+        }
+
+        // 4. 依照路徑順序「切割」給名單成員
+        let pathPointer = 0;
+        requirements.forEach(req => {
+            if (!memberColorMap[req.name]) memberColorMap[req.name] = colorPalette[colorIdx++ % colorPalette.length];
+            for (let k = 0; k < req.count; k++) {
+                if (pathPointer < orderedPathIndices.length) {
+                    let targetCoordIdx = orderedPathIndices[pathPointer];
+                    currentAssignMap[targetCoordIdx] = req.name;
+                    pathPointer++;
+                }
+            }
+        });
+
+        renderTable(); 
+        alert("✅ 連續最優路徑分配完成！已根據地理位置自動調整分配順序。");
+    }
+
+    function renderTable() {
+        const name = document.getElementById('fieldSelector').value;
+        const coords = database[name], tbody = document.getElementById('tableBody');
+        const prev = Array.from(document.querySelectorAll('.row-check')).map(c => c.checked);
+        tbody.innerHTML = ""; markersLayer.clearLayers();
+        let bounds = [];
+
+        coords.forEach((coord, i) => {
+            const isChecked = (prev.length === 0) ? true : (prev[i] !== undefined ? prev[i] : true);
+            const mName = currentAssignMap[i], [lat, lng] = coord.split(',').map(Number);
+            if (!isNaN(lat)) bounds.push([lat, lng]);
+
+            const tr = document.createElement('tr');
+            if (!isChecked) tr.className = "row-disabled";
+
+            let color = isChecked ? (mName ? memberColorMap[mName] : 'var(--unassigned-color)') : 'var(--disabled-color)';
+            let nameHTML = mName 
+                ? `<span class="assigned-name" style="background-color: ${color}">${mName}</span>` 
+                : `<span class="unassigned-label">${isChecked ? '可依序認領' : '不參與'}</span>`;
+
+            tr.innerHTML = `
+                <td class="check-col"><input type="checkbox" class="row-check" ${isChecked ? 'checked' : ''} onchange="renderTable(); updateStats();"></td>
+                <td class="no-col">${i + 1}</td>
+                <td><button class="copy-btn" onclick="copyC('${coord}', this, '${mName || (isChecked?'可領':'不領')}')">複製</button></td>
+                <td class="member-col">${nameHTML}</td>
+                <td class="coord-text">${coord}</td>
+            `;
+            tbody.appendChild(tr);
+
+            const iconHtml = `<div class="map-number-icon" style="background:${color}">${i + 1}</div>`;
+            L.marker([lat, lng], {icon: L.divIcon({className: '', html: iconHtml, iconSize: [24, 24]})}).addTo(markersLayer);
+        });
+        if (bounds.length > 0) map.fitBounds(bounds, {padding: [50, 50]});
+    }
+
+    function updateStats() {
+        let d = 0; document.getElementById('batchMemberInput').value.split('\n').forEach(l => {
+            const c = parseInt(l.trim().split(/\s+/)[0]); if (!isNaN(c)) d += c;
+        });
+        const a = Array.from(document.querySelectorAll('.row-check')).filter(c => c.checked).length;
+        document.getElementById('statsDisplay').innerHTML = `總需求: <b>${d}</b> | 可用座標: <b>${a}</b>`;
+        document.getElementById('statsDisplay').style.color = (d > a) ? "var(--danger-color)" : "#555";
+        return { demand: d, available: a };
+    }
+
+    function checkAndClearDuplicates() {
+        const n = document.getElementById('fieldSelector').value, o = database[n], s = new Set(), u = [], d = [];
+        o.forEach(c => { const cl = c.replace(/\s/g, ""); if (s.has(cl)) d.push(c); else { s.add(cl); u.push(c); }});
+        if (d.length > 0 && confirm(`發現重複！是否清除？`)) { database[n] = u; resetAndRender(); }
+    }
+
+    function copyForGroup() {
+        const n = document.getElementById('fieldSelector').value, c = database[n], g = {}, u = [], chk = document.querySelectorAll('.row-check'), order = [];
+        const assignedIndices = Object.keys(currentAssignMap).sort((a,b) => {
+             const names = document.getElementById('batchMemberInput').value.split('\n').map(l => l.trim().split(/\s+/)[1]);
+             return names.indexOf(currentAssignMap[a]) - names.indexOf(currentAssignMap[b]);
+        });
+        assignedIndices.forEach(idx => {
+            const m = currentAssignMap[idx], cl = c[idx].replace(/\s/g, "");
+            if (!g[m]) { g[m] = []; order.push(m); } g[m].push(cl);
+        });
+        c.forEach((v, i) => { if (chk[i].checked && !currentAssignMap[i]) u.push(v.replace(/\s/g, "")); });
+        let res = `📍 ${n} 分配名單\n\n`;
+        order.forEach(nm => res += `+${g[nm].length} ${nm}\n${g[nm].join('\n')}\n\n`);
+        if (u.length > 0) res += `未分配座標(可依序認領)\n${u.join('\n')}`;
+        navigator.clipboard.writeText(res.trim()).then(() => alert("分配格式已複製！"));
+    }
+
+    function copyC(t, b, n) { navigator.clipboard.writeText(t.replace(/\s/g, "")); alert(`複製成功，此座標為 ${n} 使用`); }
+    function resetAndRender() { currentAssignMap = {}; memberColorMap = {}; renderTable(); updateStats(); }
+    function toggleAllChecks(s) { document.querySelectorAll('.row-check').forEach(c => c.checked = s); renderTable(); updateStats(); }
+    function importGPX(i) {
+        const f = i.files[0]; if (!f) return;
+        lastGpxName = f.name.replace(/\.[^/.]+$/, "");
+        const reader = new FileReader();
+        reader.onload = e => {
+            const xml = new DOMParser().parseFromString(e.target.result, "text/xml");
+            const pts = xml.querySelectorAll('wpt, trkpt');
+            let found = []; pts.forEach(p => {
+                const lat = p.getAttribute('lat'), lon = p.getAttribute('lon');
+                if (lat && lon) found.push(`${lat},${lon}`);
+            });
+            if (found.length > 0) { document.getElementById('customCoordsInput').value = found.join('\n'); loadCustomCoords(); }
+        }; reader.readAsText(f);
+    }
+    function loadCustomCoords() {
+        const lines = document.getElementById('customCoordsInput').value.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+        if (lines.length === 0) return;
+        database[lastGpxName] = lines;
+        const sel = document.getElementById('fieldSelector');
+        if (![...sel.options].some(o => o.value === lastGpxName)) {
+            let opt = document.createElement('option'); opt.value = lastGpxName; opt.textContent = "📂 " + lastGpxName; sel.appendChild(opt);
+        }
+        sel.value = lastGpxName; resetAndRender();
+    }
+    window.onload = init;
+</script>
+</body>
+</html>

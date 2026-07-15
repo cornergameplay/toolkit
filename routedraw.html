@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>進階 GPX 航點與軌跡產生器</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/s2-geometry@1.2.10/src/s2geometry.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; color: #2c3e50; }
+        .flex-container { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+        .flex-item { flex: 1; min-width: 120px; }
+        label { font-weight: bold; display: block; margin-top: 10px; margin-bottom: 5px; }
+        input[type="text"], input[type="number"], textarea {
+            width: 100%; padding: 10px; border: 1px solid #ccc;
+            border-radius: 4px; box-sizing: border-box;
+        }
+        textarea { height: 140px; font-family: monospace; resize: vertical; }
+        
+        button {
+            display: block; width: 100%; padding: 15px; margin-top: 15px;
+            color: white; border: none; border-radius: 4px; 
+            font-size: 16px; font-weight: bold; cursor: pointer; 
+            transition: background-color 0.3s;
+        }
+        .btn-download { background-color: #27ae60; }
+        .btn-download:hover { background-color: #2ecc71; }
+        .btn-txt { background-color: #34495e; margin-top: 10px; }
+        .btn-txt:hover { background-color: #2c3e50; }
+        .btn-preview { background-color: #3498db; margin-top: 20px;}
+        .btn-preview:hover { background-color: #2980b9; }
+        
+        .header-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; margin-bottom: 5px; flex-wrap: wrap; gap: 10px; }
+        .header-row label { margin: 0; }
+        
+        .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-upload {
+            width: auto; padding: 6px 12px; margin: 0; background-color: #8e44ad; 
+            color: white; border: none; border-radius: 4px; font-size: 14px; 
+            cursor: pointer; font-weight: bold; transition: background-color 0.3s;
+        }
+        .btn-upload:hover { background-color: #9b59b6; }
+        
+        .btn-paste {
+            width: auto; padding: 6px 12px; margin: 0; background-color: #f39c12; 
+            color: white; border: none; border-radius: 4px; font-size: 14px; 
+            cursor: pointer; font-weight: bold; transition: background-color 0.3s;
+        }
+        .btn-paste:hover { background-color: #e67e22; }
+
+        .btn-dedupe {
+            width: auto; padding: 6px 12px; margin: 0; background-color: #1abc9c; 
+            color: white; border: none; border-radius: 4px; font-size: 14px; 
+            cursor: pointer; font-weight: bold; transition: background-color 0.3s;
+        }
+        .btn-dedupe:hover { background-color: #16a085; }
+
+        .btn-recognize {
+            width: auto; padding: 6px 12px; margin: 0; background-color: #3498db; 
+            color: white; border: none; border-radius: 4px; font-size: 14px; 
+            cursor: pointer; font-weight: bold; transition: background-color 0.3s;
+        }
+        .btn-recognize:hover { background-color: #2980b9; }
+
+        .btn-clear-all {
+            width: auto; padding: 6px 12px; margin: 0; background-color: #e74c3c; 
+            color: white; border: none; border-radius: 4px; font-size: 14px; 
+            cursor: pointer; font-weight: bold; transition: background-color 0.3s;
+        }
+        .btn-clear-all:hover { background-color: #c0392b; }
+
+        .point-marker {
+            background-color: #3498db; color: white; border-radius: 50%;
+            width: 22px; height: 22px; text-align: center; line-height: 22px;
+            font-size: 11px; font-weight: bold; border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+        .custom-div-icon { background: transparent; border: none; }
+        
+        .mode-panel {
+            background-color: #fff3cd; padding: 12px; border-radius: 6px;
+            border: 1px solid #ffe69c; display: flex; align-items: center; gap: 15px;
+            margin-top: 15px; flex-wrap: wrap;
+        }
+        .mode-panel span { font-weight: bold; color: #856404; }
+        .mode-panel label { margin: 0; cursor: pointer; color: #333; font-weight: bold; display: flex; align-items: center; gap: 5px;}
+        .mode-panel input { cursor: pointer; width: 16px; height: 16px; margin:0; }
+        .mode-panel input:disabled { cursor: not-allowed; }
+
+        .combo-builder {
+            background: #fdfdfd; border: 2px dashed #bdc3c7; padding: 15px; border-radius: 6px;
+            margin-top: 10px; display: none;
+        }
+        .combo-seq-list { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+        .combo-badge {
+            background: #3498db; color: white; padding: 6px 12px; border-radius: 20px; font-size: 14px;
+            display: flex; align-items: center; gap: 6px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .combo-badge.zigzag { background: #9b59b6; }
+        .combo-badge.triangle { background: #e67e22; }
+        .combo-badge.circle { background: #e84393; }
+        .combo-badge.straight { background: #1abc9c; }
+        .combo-badge.qi { background: #8e44ad; }
+        .combo-badge.scan { background: #f39c12; }
+        
+        .combo-badge-rev {
+            cursor: pointer; background: rgba(255,255,255,0.25); border-radius: 50%; 
+            width: 22px; height: 22px; text-align: center; line-height: 22px; font-size: 12px;
+            transition: 0.2s;
+        }
+        .combo-badge-rev:hover { background: white; color: #333; }
+
+        .combo-badge-del { 
+            cursor: pointer; background: rgba(255,255,255,0.25); border-radius: 50%; 
+            width: 22px; height: 22px; text-align: center; line-height: 20px; font-size: 16px;
+        }
+        .combo-badge-del:hover { background: #e74c3c; color: white; }
+        
+        .combo-add-btn {
+            background: white; border: 2px solid #3498db; color: #3498db; padding: 6px 12px; 
+            border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; display: inline-block; width: auto; margin: 0;
+        }
+        .combo-add-btn:hover { background: #3498db; color: white; }
+        .combo-add-btn.zigzag { border-color: #9b59b6; color: #9b59b6; }
+        .combo-add-btn.zigzag:hover { background: #9b59b6; color: white; }
+        .combo-add-btn.triangle { border-color: #e67e22; color: #e67e22; }
+        .combo-add-btn.triangle:hover { background: #e67e22; color: white; }
+        .combo-add-btn.circle { border-color: #e84393; color: #e84393; }
+        .combo-add-btn.circle:hover { background: #e84393; color: white; }
+        .combo-add-btn.straight { border-color: #1abc9c; color: #1abc9c; }
+        .combo-add-btn.straight:hover { background: #1abc9c; color: white; }
+        .combo-add-btn.qi { border-color: #8e44ad; color: #8e44ad; }
+        .combo-add-btn.qi:hover { background: #8e44ad; color: white; }
+        .combo-add-btn.scan { border-color: #f39c12; color: #f39c12; }
+        .combo-add-btn.scan:hover:not(:disabled) { background: #f39c12; color: white; }
+        .combo-add-btn.scan:disabled { opacity: 0.4; cursor: not-allowed; border-color: #ccc; color: #999; }
+
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); z-index: 1000;
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: white; padding: 20px; border-radius: 8px;
+            width: 90%; max-width: 800px; position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            max-height: 90vh; overflow-y: auto;
+        }
+        .close-btn {
+            position: absolute; top: 15px; right: 20px;
+            font-size: 28px; font-weight: bold; color: #888;
+            cursor: pointer; line-height: 1;
+        }
+        .close-btn:hover { color: #333; }
+        
+        #map { height: 420px; width: 100%; border-radius: 4px; border: 1px solid #ccc; z-index: 1; margin-bottom: 15px; }
+        
+        .action-bar { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: stretch; }
+        .route-toggle-group {
+            display: flex; gap: 0; border-radius: 6px; flex: 1; min-width: 250px;
+            overflow: hidden; border: 2px solid #3498db;
+        }
+        .toggle-btn {
+            flex: 1; padding: 10px 5px; border: none; background-color: white; color: #3498db; 
+            font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.3s; margin: 0;
+            border-radius: 0; white-space: nowrap; text-align: center;
+        }
+        .toggle-btn:not(:last-child) { border-right: 2px solid #3498db; }
+        .toggle-btn.active { background-color: #3498db; color: white; }
+        .toggle-btn:hover:not(.active) { background-color: #eaf4fc; }
+        .toggle-btn:disabled { opacity: 0.4; cursor: not-allowed; color: #999; }
+
+        .speed-control {
+            display: flex; align-items: center; gap: 8px; background: #fff; 
+            border: 2px solid #bdc3c7; border-radius: 6px; padding: 0 10px; white-space: nowrap;
+        }
+        .speed-control input {
+            width: 45px; border: none; outline: none; font-weight: bold; 
+            color: #d35400; text-align: center; font-size: 16px; padding: 0; background: transparent;
+        }
+
+        .btn-action-small {
+            margin: 0; padding: 0 12px; color: white; border: none; border-radius: 6px; 
+            font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.3s; white-space: nowrap;
+        }
+        .btn-optimize { background-color: #1abc9c; }
+        .btn-optimize:hover { background-color: #16a085; }
+        .btn-reverse { background-color: #f39c12; }
+        .btn-reverse:hover { background-color: #e67e22; }
+        .btn-undo { background-color: #95a5a6; }
+        .btn-undo:hover:not(:disabled) { background-color: #7f8c8d; }
+        .btn-undo:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-undo-opt { background-color: #e74c3c; }
+        .btn-undo-opt:hover { background-color: #c0392b; }
+
+        .route-stats {
+            background-color: #f8f9fa; border-left: 4px solid #f39c12;
+            padding: 8px 15px; margin-bottom: 12px; border-radius: 4px;
+            font-size: 15px; color: #2c3e50; font-weight: bold;
+        }
+        .stat-highlight { color: #d35400; font-size: 18px; margin-left: 5px; margin-right: 15px; }
+        .stat-sub { color: #7f8c8d; font-size: 13px; font-weight: normal; }
+
+        .btn-icon {
+            background: white; border: 1px solid #ccc; border-radius: 4px; color: #333;
+            cursor: pointer; padding: 4px 8px; font-size: 14px; transition: 0.2s; outline: none;
+        }
+        .btn-icon:hover:not(:disabled) { background: #eee; }
+        .btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn-del { color: #e74c3c; }
+        .btn-del:hover:not(:disabled) { background: #fee; border-color: #fca; }
+
+        /* 地圖繪製模式專屬 CSS 強制穿透覆蓋游標，確保不擋點擊 */
+        .drawing-mode { cursor: crosshair !important; }
+        .drawing-mode .leaflet-interactive { cursor: crosshair !important; }
+        .leaflet-container.drawing-mode { cursor: crosshair !important; }
+        .s2-grid-layer { pointer-events: none !important; }
+    </style>
+</head>
+<body>
+
+    <h2>📍 進階 GPX 路線產生器</h2>
+
+    <div class="flex-container">
+        <div class="flex-item">
+            <label for="routeName">路徑名稱 (將作為存檔檔名):</label>
+            <input type="text" id="routeName" value="" placeholder="例如：大安森林公園種花">
+        </div>
+        <div class="flex-item">
+            <label for="speed">模擬時速 (km/h):</label>
+            <input type="number" id="speed" value="19" min="1" max="100" oninput="syncInputs('speed', 'main')">
+        </div>
+    </div>
+
+    <div class="mode-panel">
+        <span>⚙️ 路線模式：</span>
+        <label><input type="radio" name="routeModeOut" value="direct" onchange="setRouteType('direct')" checked> 📍 直連</label>
+        <label><input type="radio" name="routeModeOut" value="zigzag" onchange="setRouteType('zigzag')"> 🌸 Z字</label>
+        <label><input type="radio" name="routeModeOut" value="triangle" onchange="setRouteType('triangle')"> 🔺 三角</label>
+        <label><input type="radio" name="routeModeOut" value="circle" onchange="setRouteType('circle')"> ⭕ 繞圈</label>
+        <label><input type="radio" name="routeModeOut" value="straight" onchange="setRouteType('straight')"> ➖ 直線</label>
+        <label><input type="radio" name="routeModeOut" value="qi" onchange="setRouteType('qi')"> 〰️ 走ㄑ</label>
+        <label title="需要至少3組座標才可使用"><input type="radio" name="routeModeOut" value="scan" onchange="setRouteType('scan')" disabled> 🎯 掃描</label>
+        <label><input type="radio" name="routeModeOut" value="combo" onchange="setRouteType('combo')"> ♻️ 合併</label>
+    </div>
+
+    <div id="comboBuilderMain" class="combo-builder"></div>
+
+    <div class="header-row">
+        <label for="coords">輸入經緯度座標 (或上傳 GPX 提取):</label>
+        <div class="header-actions">
+            <button class="btn-paste" onclick="pasteButtonAction()" title="從剪貼簿貼上座標內容">📋 貼上</button>
+            <button class="btn-dedupe" onclick="removeDuplicateCoordinates()" title="自動移除重複的點位">🔍 移除重複</button>
+            <button class="btn-recognize" onclick="forceRecognizeLocation()" title="強制重新請求地理位置與時區">🔄 重新辨識</button>
+            <button class="btn-clear-all" onclick="clearAllCoordinates()" title="清空所有座標">🗑️ 清空</button>
+            <input type="file" id="gpxFile" accept=".gpx" style="display: none;" onchange="handleFileUpload(event)">
+            <button class="btn-upload" onclick="document.getElementById('gpxFile').click()">📁 讀取 GPX</button>
+        </div>
+    </div>
+    
+    <textarea id="coords" oninput="updateMap()" placeholder="請在此輸入或貼上座標，格式如：&#10;60.12287000, 11.46263700&#10;60.12063900, 11.46123300"></textarea>
+    
+    <div id="mainInfoDisplay" style="margin-top: 8px; font-size: 14px; color: #8e44ad; font-weight: bold; min-height: 20px;"></div>
+    
+    <div id="suggestedNameContainer" style="margin-top: 8px; font-size: 14px; display: none; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <span style="font-weight:bold; color:#2c3e50;">💡 建議檔名設定：</span>
+        
+        <select id="prefixSelect" onchange="updateSuggestedName()" style="padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc; font-weight:bold; color:#333; outline: none; cursor: pointer;">
+            <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            <option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option>
+            <option value="8">8</option><option value="9">9</option>
+        </select>
+        
+        <span style="font-size:13px; color:#7f8c8d; margin-left: 2px;">編號:</span>
+        
+        <select id="suffixSelect" onchange="updateSuggestedName()" style="padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc; font-weight:bold; color:#333; outline: none; cursor: pointer;">
+            <option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option>
+            <option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option>
+            <option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option>
+            <option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option>
+            <option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option>
+            <option value="20">20</option>
+        </select>
+
+        <span id="suggestedNameText" style="user-select: all; background: #ecf0f1; padding: 4px 8px; border-radius: 4px; font-family: monospace; color: #e67e22; font-weight: bold; margin-left: 5px;"></span>
+        
+        <button onclick="copySuggestedName()" style="width: auto; padding: 4px 8px; margin: 0; background: #34495e; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight:bold;">📋 複製</button>
+        <button onclick="applySuggestedName()" style="width: auto; padding: 4px 8px; margin: 0; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight:bold;">✍️ 套用</button>
+    </div>
+
+    <button class="btn-preview" onclick="openMapModal()">🗺️ 預覽地圖與互動編輯</button>
+    
+    <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button class="btn-download" style="margin-top: 0; flex: 1;" onclick="generateAndDownloadGPX()">⬇️ 產生並下載 GPX 檔案</button>
+        <button class="btn-download btn-txt" style="margin-top: 0; flex: 1;" onclick="downloadTXT()">💾 下載保存座標 (.txt)</button>
+    </div>
+
+    <div id="mapModal" class="modal-overlay" onclick="closeMapModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="closeMapModal()">&times;</span>
+            <h3 style="margin-top: 0; color: #2c3e50; margin-bottom: 12px;">🗺️ 預覽與互動編輯</h3>
+            
+            <div class="action-bar">
+                <div class="route-toggle-group">
+                    <button id="btnDirect" class="toggle-btn active" onclick="setRouteType('direct')">📍 直連</button>
+                    <button id="btnZigzag" class="toggle-btn" onclick="setRouteType('zigzag')">🌸 Z字</button>
+                    <button id="btnTriangle" class="toggle-btn" onclick="setRouteType('triangle')">🔺 三角</button>
+                    <button id="btnCircle" class="toggle-btn" onclick="setRouteType('circle')">⭕ 繞圈</button>
+                    <button id="btnStraight" class="toggle-btn" onclick="setRouteType('straight')">➖ 直線</button>
+                    <button id="btnQi" class="toggle-btn" onclick="setRouteType('qi')">〰️ 走ㄑ</button>
+                    <button id="btnScan" class="toggle-btn" onclick="setRouteType('scan')" disabled title="需要至少3組座標">🎯 掃描</button>
+                    <button id="btnCombo" class="toggle-btn" onclick="setRouteType('combo')">♻️ 合併</button>
+                </div>
+                
+                <div class="speed-control">
+                    <span style="font-size: 13px; color: #7f8c8d; font-weight:bold;">時速:</span>
+                    <input type="number" id="modalSpeed" value="19" min="1" max="100" oninput="syncInputs('speed', 'modal')">
+                    <span style="font-size: 13px; color: #7f8c8d; font-weight:bold;">km/h</span>
+                </div>
+            </div>
+
+            <div class="action-bar" style="justify-content: flex-end; border-bottom: 1px solid #eee; padding-bottom: 12px;">
+                <button id="btnS2Grid" class="btn-action-small" style="background-color: #9b59b6;" onclick="toggleS2Grid()" title="顯示 S2 Level 17 藍色網格">🌐 開啟 S2 網格</button>
+                <button id="btnMapClickAdd" class="btn-action-small" style="background-color: #34495e;" onclick="toggleMapClickAdd()" title="點擊地圖任意處即可新增座標">🖱️ 開啟地圖繪製</button>
+                <button id="btnEditMode" class="btn-action-small" style="background-color: #27ae60;" onclick="toggleEditMode()" title="開啟後可拖曳軌跡點或新增中間折點">✏️ 開啟路線修改</button>
+                <button class="btn-action-small btn-optimize" onclick="optimizeRoute()" title="自動計算極限最短耗時路徑">✨ 最佳化</button>
+                <button id="btnUndoOpt" class="btn-action-small btn-undo-opt" onclick="undoOptimize()" style="display: none;" title="恢復最佳化前的原始排序">↩️ 復原</button>
+                <button class="btn-action-small btn-reverse" onclick="reverseRoute()" title="將文字框所有座標顛倒排序">🔁 反轉</button>
+                <button id="btnUndo" class="btn-action-small btn-undo" onclick="undoLastAction()" disabled title="復原上一步操作">↩️ 復原</button>
+            </div>
+
+            <div id="comboBuilderModal" class="combo-builder" style="margin-bottom: 12px; margin-top: 0;"></div>
+
+            <div id="routeStats" class="route-stats">
+                ⏱️ 預估耗時: <span class="stat-highlight">-- 分鐘</span>
+                <span class="stat-sub">(總距離: -- 公里)</span>
+            </div>
+
+            <div id="map"></div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-download" style="margin-top: 0; flex: 1;" onclick="generateAndDownloadGPX()">⬇️ 產生並下載 GPX 檔案</button>
+                <button class="btn-download btn-txt" style="margin-top: 0; flex: 1;" onclick="downloadTXT()">💾 下載保存座標 (.txt)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentRouteType = 'direct';
+        let comboSequence = [
+            { type: 'direct', reverse: false },
+            { type: 'circle', reverse: true }
+        ];
+        
+        let historyStack = []; 
+        let coordsBeforeOptimization = null;
+
+        // Interactive States
+        let s2Enabled = false;
+        let s2Layer = null;
+        let mapClickAddEnabled = false;
+        let isDragging = false;
+        let editModeEnabled = false;
+
+        // 地理位置與時區變數
+        let infoDisplayString = "";
+        let lastCheckedCoord = null;
+        let currentTargetOffset = null; 
+        
+        let locCountry = "";
+        let locState = "";
+        let locCity = "";
+
+        let map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+
+        let polyline = null;
+        let markers = [];
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        // 全局操作歷史紀錄
+        function saveHistory() {
+            const currentVal = document.getElementById('coords').value;
+            historyStack.push(currentVal);
+            if(historyStack.length > 50) historyStack.shift(); 
+            updateUndoButton();
+        }
+
+        function undoLastAction() {
+            if (historyStack.length > 0) {
+                const prevVal = historyStack.pop();
+                document.getElementById('coords').value = prevVal;
+                updateMap();
+                updateUndoButton();
+            }
+        }
+
+        function updateUndoButton() {
+            const btnUndo = document.getElementById('btnUndo');
+            if (btnUndo) btnUndo.disabled = historyStack.length === 0;
+        }
+
+        // --- 取得並換算地理位置與時區 (嚴格繁英分離版) ---
+        async function checkLocationInfo(lat, lon) {
+            if (lastCheckedCoord && Math.abs(lastCheckedCoord.lat - lat) < 0.1 && Math.abs(lastCheckedCoord.lon - lon) < 0.1) {
+                updateSuggestedName();
+                return; 
+            }
+            lastCheckedCoord = { lat, lon };
+            
+            let locationString = "未知位置";
+            locCountry = ''; locState = ''; locCity = '';
+            currentTargetOffset = null;
+            
+            try {
+                const geoResTW = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=zh-TW,zh-Hant,en-US,en`);
+                const geoDataTW = await geoResTW.json();
+                
+                await new Promise(resolve => setTimeout(resolve, 1100)); 
+                
+                const geoResEN = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=en-US,en`);
+                const geoDataEN = await geoResEN.json();
+
+                if (geoDataTW && geoDataTW.address) {
+                    const addrTW = geoDataTW.address;
+                    
+                    if (addrTW.country_code) {
+                        try {
+                            locCountry = new Intl.DisplayNames(['zh-TW'], {type: 'region'}).of(addrTW.country_code.toUpperCase());
+                        } catch (e) {
+                            locCountry = addrTW.country || '';
+                        }
+                    } else {
+                        locCountry = addrTW.country || '';
+                    }
+                    
+                    locState = addrTW.state || addrTW.province || '';
+                }
+                
+                if (geoDataEN && geoDataEN.address) {
+                    const addrEN = geoDataEN.address;
+                    locCity = addrEN.city || addrEN.town || addrEN.county || '';
+                }
+                
+                let locParts = [locCountry, locState, locCity].filter(Boolean);
+                locParts = Array.from(new Set(locParts)); 
+                locationString = locParts.join(', ');
+                
+            } catch (e) {
+                console.warn("地理位置 API 呼叫失敗:", e);
+            }
+
+            try {
+                const tzRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`);
+                const tzData = await tzRes.json();
+                
+                let targetOffset;
+                let tzName = "";
+                
+                if (tzData.utc_offset_seconds !== undefined) {
+                    targetOffset = tzData.utc_offset_seconds / 3600;
+                    tzName = tzData.timezone || "當地時間";
+                } else {
+                    throw new Error("無法取得時區資料");
+                }
+                
+                updateInfoUI(targetOffset, tzName, locationString);
+                
+            } catch (e) {
+                console.warn("時區 API 呼叫失敗，改用經度推算:", e);
+                const targetOffset = Math.round(lon / 15);
+                updateInfoUI(targetOffset, "經度估算時區", locationString);
+            }
+            
+            updateSuggestedName();
+        }
+
+        function forceRecognizeLocation() {
+            const points = parseCoordinates();
+            if (points.length === 0) {
+                alert('請先輸入座標喔！');
+                return;
+            }
+            lastCheckedCoord = null;
+            updateMap();
+        }
+
+        function updateInfoUI(targetOffset, tzName, locationString) {
+            currentTargetOffset = targetOffset;
+            const taipeiOffset = 8;
+            const diff = targetOffset - taipeiOffset;
+            
+            let diffText = "";
+            if (diff > 0) diffText = `比台北 <span style="color:#d35400; font-weight:bold;">快 ${diff} 小時</span>`;
+            else if (diff < 0) diffText = `比台北 <span style="color:#27ae60; font-weight:bold;">慢 ${Math.abs(diff)} 小時</span>`;
+            else diffText = `與台北 <span style="color:#2980b9; font-weight:bold;">無時差</span>`;
+
+            infoDisplayString = `📍 ${locationString} ｜ 🌍 時區: <strong>${tzName}</strong> ( UTC${targetOffset >= 0 ? '+' : ''}${targetOffset} ) ｜ ${diffText}`;
+            
+            const mainInfo = document.getElementById('mainInfoDisplay');
+            if (mainInfo) mainInfo.innerHTML = infoDisplayString;
+
+            const infoLabel = document.getElementById('infoDisplayLabel');
+            if (infoLabel) infoLabel.innerHTML = infoDisplayString;
+        }
+
+        function updateSuggestedName() {
+            const points = parseCoordinates();
+            const pointCount = points.length;
+            const container = document.getElementById('suggestedNameContainer');
+            const textSpan = document.getElementById('suggestedNameText');
+            
+            if (pointCount === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            let modeName = '';
+            if (currentRouteType === 'direct') modeName = '直連';
+            else if (currentRouteType === 'zigzag') modeName = 'Z字';
+            else if (currentRouteType === 'triangle') modeName = '三角';
+            else if (currentRouteType === 'circle') modeName = '繞圈';
+            else if (currentRouteType === 'straight') modeName = '直線';
+            else if (currentRouteType === 'qi') modeName = '走ㄑ';
+            else if (currentRouteType === 'scan') modeName = '掃描';
+            else if (currentRouteType === 'combo') modeName = '合併';
+
+            let timeDiffStr = "未知時差";
+            if (currentTargetOffset !== null) {
+                const diff = currentTargetOffset - 8;
+                if (diff > 0) timeDiffStr = `+${diff}小時`;
+                else if (diff < 0) timeDiffStr = `${diff}小時`; 
+                else timeDiffStr = `0小時`;
+            }
+
+            const prefix = document.getElementById('prefixSelect') ? document.getElementById('prefixSelect').value : "0";
+            const suffix = document.getElementById('suffixSelect') ? document.getElementById('suffixSelect').value : "00";
+
+            const nameStr = `${prefix}_Corn_${locCity}_${suffix}_${timeDiffStr}_${pointCount}朵_${modeName}_${locCountry}${locState}`;
+            
+            textSpan.innerText = nameStr;
+            container.style.display = 'flex';
+        }
+
+        function copySuggestedName() {
+            const text = document.getElementById('suggestedNameText').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ 建議檔名已複製成功！');
+            }).catch(err => {
+                console.error('複製失敗', err);
+            });
+        }
+
+        function applySuggestedName() {
+            const text = document.getElementById('suggestedNameText').innerText;
+            document.getElementById('routeName').value = text;
+        }
+
+        async function pasteButtonAction() {
+            try {
+                let text = await navigator.clipboard.readText();
+                if (!text) { alert('剪貼簿中目前沒有文字喔！'); return; }
+                text = text.trim();
+                
+                const coordsTextArea = document.getElementById('coords');
+                let currentVal = coordsTextArea.value;
+                if (currentVal && !currentVal.endsWith('\n')) currentVal += '\n';
+                saveHistory();
+                coordsTextArea.value = currentVal + text + '\n';
+                
+                updateMap();
+            } catch (err) {
+                alert('無法自動讀取剪貼簿，可能是瀏覽器權限阻擋，請直接在文字框內使用「Ctrl+V」或長按選擇「貼上」。');
+            }
+        }
+
+        document.getElementById('coords').addEventListener('paste', function(e) {
+            e.preventDefault(); 
+            let pasteData = (e.clipboardData || window.clipboardData).getData('text');
+            if (!pasteData) return;
+            
+            pasteData = pasteData.trim();
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            const currentVal = this.value;
+            
+            let prefix = (start > 0 && currentVal[start - 1] !== '\n') ? "\n" : "";
+            let suffix = "\n";
+            
+            saveHistory();
+            this.value = currentVal.substring(0, start) + prefix + pasteData + suffix + currentVal.substring(end);
+            this.selectionStart = this.selectionEnd = start + prefix.length + pasteData.length + suffix.length;
+            updateMap();
+        });
+
+        function removeDuplicateCoordinates() {
+            const coordsTextArea = document.getElementById('coords');
+            const text = coordsTextArea.value.trim();
+            if (!text) return;
+
+            const lines = text.split('\n');
+            const seen = new Set();
+            const uniqueLines = [];
+            let duplicateCount = 0;
+
+            for (let line of lines) {
+                if (line.trim() === '') continue;
+                const parts = line.split(/[, \t]+/);
+                if (parts.length >= 2) {
+                    const lat = parseFloat(parts[0]).toFixed(6);
+                    const lon = parseFloat(parts[1]).toFixed(6);
+                    if (!isNaN(lat) && !isNaN(lon)) {
+                        const key = `${lat},${lon}`;
+                        if (seen.has(key)) duplicateCount++;
+                        else { seen.add(key); uniqueLines.push(line); }
+                    } else uniqueLines.push(line);
+                } else uniqueLines.push(line);
+            }
+
+            if (duplicateCount > 0) {
+                if (confirm(`偵測到 ${duplicateCount} 組重複座標！\n是否要自動幫您清除它們？`)) {
+                    saveHistory();
+                    coordsTextArea.value = uniqueLines.join('\n') + '\n';
+                    updateMap();
+                    alert(`✅ 已成功移除 ${duplicateCount} 組重複座標！`);
+                }
+            } else alert('✨ 檢查完畢，目前沒有任何重複的座標！');
+        }
+
+        function clearAllCoordinates() {
+            const coordsTextArea = document.getElementById('coords');
+            if (coordsTextArea.value.trim() === '') return;
+            if (confirm('確定要清空所有座標嗎？這個動作將無法復原。')) {
+                saveHistory();
+                coordsTextArea.value = '';
+                coordsBeforeOptimization = null;
+                const btnUndoOpt = document.getElementById('btnUndoOpt');
+                if(btnUndoOpt) btnUndoOpt.style.display = 'none';
+                updateMap();
+            }
+        }
+
+        function undoOptimize() {
+            if (coordsBeforeOptimization !== null) {
+                saveHistory();
+                document.getElementById('coords').value = coordsBeforeOptimization;
+                coordsBeforeOptimization = null; 
+                const btnUndoOpt = document.getElementById('btnUndoOpt');
+                if(btnUndoOpt) btnUndoOpt.style.display = 'none';
+                updateMap();
+            }
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+            document.getElementById('routeName').value = fileNameWithoutExt;
+
+            const reader = new FileReader();
+            reader.onload = function(e) { parseUploadedGPX(e.target.result); event.target.value = ''; };
+            reader.readAsText(file);
+        }
+
+        function parseUploadedGPX(xmlText) {
+            try {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                let extractedCoords = [];
+                ['wpt', 'trkpt', 'rtept'].forEach(tag => {
+                    const elements = xmlDoc.getElementsByTagName(tag);
+                    for (let i = 0; i < elements.length; i++) {
+                        const lat = elements[i].getAttribute('lat');
+                        const lon = elements[i].getAttribute('lon');
+                        if (lat && lon) extractedCoords.push(`${parseFloat(lat).toFixed(8)}, ${parseFloat(lon).toFixed(8)}`);
+                    }
+                });
+                if (extractedCoords.length > 0) {
+                    saveHistory();
+                    coordsBeforeOptimization = null;
+                    const btnUndoOpt = document.getElementById('btnUndoOpt');
+                    if(btnUndoOpt) btnUndoOpt.style.display = 'none';
+                    document.getElementById('coords').value = extractedCoords.join('\n') + '\n';
+                    updateMap();
+                    alert(`✅ 成功讀取並提取了 ${extractedCoords.length} 個座標點！`);
+                } else alert('⚠️ 在此 GPX 檔案中找不到任何座標點。');
+            } catch (error) { alert('⚠️ 檔案解析失敗，請確認這是一個有效的 GPX 檔案。'); }
+        }
+
+        function parseCoordinates() {
+            const coordsText = document.getElementById('coords').value.trim();
+            const lines = coordsText.split('\n');
+            const points = [];
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                const parts = line.split(/[, \t]+/);
+                if (parts.length >= 2) {
+                    const lat = parseFloat(parts[0]);
+                    const lon = parseFloat(parts[1]);
+                    if (!isNaN(lat) && !isNaN(lon)) points.push({ lat, lon, originalLine: line });
+                }
+            }
+            return points;
+        }
+
+        function expandRouteWithMeta(points) {
+            if (points.length === 0) return [];
+            let result = [];
+            
+            let sequence = [];
+            if (currentRouteType === 'direct') sequence = [{type: 'direct', reverse: false}];
+            else if (currentRouteType === 'zigzag') sequence = [{type: 'zigzag', reverse: false}];
+            else if (currentRouteType === 'triangle') sequence = [{type: 'triangle', reverse: false}];
+            else if (currentRouteType === 'circle') sequence = [{type: 'circle', reverse: false}];
+            else if (currentRouteType === 'straight') sequence = [{type: 'straight', reverse: false}];
+            else if (currentRouteType === 'qi') sequence = [{type: 'qi', reverse: false}];
+            else if (currentRouteType === 'scan') sequence = [{type: 'scan', reverse: false}];
+            else if (currentRouteType === 'combo') sequence = comboSequence;
+
+            sequence.forEach((step, stepIndex) => {
+                let stepPoints = [];
+                for (let i = 0; i < points.length; i++) {
+                    let actualIndex = step.reverse ? (points.length - 1 - i) : i;
+                    stepPoints.push({ pt: points[actualIndex], actualIndex: actualIndex });
+                }
+
+                let typeLabel = ''; let bgColor = '';
+                if (step.type === 'direct') { typeLabel = '📍 直連'; bgColor = '#3498db'; }
+                else if (step.type === 'zigzag') { typeLabel = '🌸 Z字'; bgColor = '#9b59b6'; }
+                else if (step.type === 'triangle') { typeLabel = '🔺 三角'; bgColor = '#e67e22'; }
+                else if (step.type === 'circle') { typeLabel = '⭕ 繞圈'; bgColor = '#e84393'; }
+                else if (step.type === 'straight') { typeLabel = '➖ 完整直線'; bgColor = '#1abc9c'; }
+                else if (step.type === 'qi') { typeLabel = '〰️ 走ㄑ'; bgColor = '#8e44ad'; }
+                else if (step.type === 'scan') { typeLabel = '🎯 掃描'; bgColor = '#f39c12'; }
+
+                let stepDesc = `${typeLabel} (步驟 ${stepIndex + 1}${step.reverse ? ' 反向' : ''})`;
+
+                if (step.type === 'scan') {
+                    let scanPts = [];
+                    if (points.length >= 3) {
+                        let lat0 = points[0].lat;
+                        let lon0 = points[0].lon;
+                        let localPts = points.map(p => {
+                            return {
+                                x: (p.lon - lon0) * 111320 * Math.cos(lat0 * Math.PI / 180),
+                                y: (p.lat - lat0) * 111320,
+                                orig: p
+                            };
+                        });
+
+                        let scanPathLocal = [];
+                        let currentRing = localPts;
+                        let d = 30;
+
+                        function getSignedArea(ring) {
+                            let area = 0;
+                            for (let i=0; i<ring.length; i++) {
+                                let j = (i+1)%ring.length;
+                                area += ring[i].x * ring[j].y - ring[j].x * ring[i].y;
+                            }
+                            return area / 2;
+                        }
+
+                        let initialArea = getSignedArea(currentRing);
+                        if (initialArea === 0) initialArea = 1;
+                        let isCCW = initialArea > 0;
+
+                        let maxIter = 1000;
+                        while (maxIter-- > 0 && currentRing.length >= 3) {
+                            let nextRing = [];
+                            let n = currentRing.length;
+
+                            for (let i = 0; i < n; i++) {
+                                let prev = currentRing[(i - 1 + n) % n];
+                                let curr = currentRing[i];
+                                let next = currentRing[(i + 1) % n];
+
+                                let dx1 = curr.x - prev.x;
+                                let dy1 = curr.y - prev.y;
+                                let len1 = Math.sqrt(dx1*dx1 + dy1*dy1);
+                                if (len1 === 0) { dx1 = 1; dy1 = 0; len1 = 1; }
+                                let nx1 = isCCW ? -dy1 / len1 : dy1 / len1;
+                                let ny1 = isCCW ? dx1 / len1 : -dx1 / len1;
+
+                                let dx2 = next.x - curr.x;
+                                let dy2 = next.y - curr.y;
+                                let len2 = Math.sqrt(dx2*dx2 + dy2*dy2);
+                                if (len2 === 0) { dx2 = 1; dy2 = 0; len2 = 1; }
+                                let nx2 = isCCW ? -dy2 / len2 : dy2 / len2;
+                                let ny2 = isCCW ? dx2 / len2 : -dx2 / len2;
+
+                                let D = nx1 * ny2 - ny1 * nx2;
+                                let vx, vy;
+                                if (Math.abs(D) < 1e-6) {
+                                    vx = d * nx1;
+                                    vy = d * ny1;
+                                } else {
+                                    vx = d * (ny2 - ny1) / D;
+                                    vy = d * (nx1 - nx2) / D;
+                                }
+
+                                let vLen = Math.sqrt(vx*vx + vy*vy);
+                                if (vLen > d * 4) {
+                                    vx = (vx / vLen) * d * 4;
+                                    vy = (vy / vLen) * d * 4;
+                                }
+
+                                nextRing.push({ x: curr.x + vx, y: curr.y + vy });
+                            }
+
+                            let cleanRing = [];
+                            let skip = false;
+                            for (let i = 0; i < n; i++) {
+                                if (skip) { skip = false; continue; }
+                                let nextI = (i + 1) % n;
+                                let dxOrig = currentRing[nextI].x - currentRing[i].x;
+                                let dyOrig = currentRing[nextI].y - currentRing[i].y;
+                                let dxNew = nextRing[nextI].x - nextRing[i].x;
+                                let dyNew = nextRing[nextI].y - nextRing[i].y;
+                                
+                                if (dxOrig * dxNew + dyOrig * dyNew <= 0) {
+                                    cleanRing.push({
+                                        x: (nextRing[i].x + nextRing[nextI].x) / 2,
+                                        y: (nextRing[i].y + nextRing[nextI].y) / 2
+                                    });
+                                    skip = true;
+                                } else {
+                                    cleanRing.push(nextRing[i]);
+                                }
+                            }
+
+                            let newArea = getSignedArea(cleanRing);
+                            
+                            currentRing.forEach(p => scanPathLocal.push(p));
+
+                            if ((isCCW && newArea <= 0) || (!isCCW && newArea >= 0) || Math.abs(newArea) < 10) {
+                                break; 
+                            }
+
+                            currentRing = cleanRing;
+                        }
+
+                        scanPts = scanPathLocal.map(p => {
+                            return {
+                                lat: lat0 + (p.y / 111320),
+                                lon: lon0 + (p.x / (111320 * Math.cos(lat0 * Math.PI / 180)))
+                            };
+                        });
+                    } else {
+                        scanPts = points;
+                    }
+
+                    if (step.reverse) scanPts.reverse();
+
+                    scanPts.forEach((pt) => {
+                        result.push({
+                            lat: pt.lat, lon: pt.lon, 
+                            originalIndex: 0, 
+                            desc: stepDesc, bgColor: bgColor
+                        });
+                    });
+                    return; 
+                }
+
+                stepPoints.forEach((item) => {
+                    const pt = item.pt;
+                    let subPts = [];
+
+                    if (step.type === 'direct') {
+                        subPts.push({ lat: pt.lat, lon: pt.lon });
+                    } else if (step.type === 'zigzag') {
+                        const latOff = 29 / 111320;
+                        const lonOff = 29 / (111320 * Math.cos(pt.lat * Math.PI / 180));
+                        subPts = [
+                            { lat: pt.lat + latOff, lon: pt.lon - lonOff },
+                            { lat: pt.lat + latOff, lon: pt.lon + lonOff },
+                            { lat: pt.lat - latOff, lon: pt.lon - lonOff },
+                            { lat: pt.lat - latOff, lon: pt.lon + lonOff }
+                        ];
+                    } else if (step.type === 'triangle') {
+                        const latOff = 35.218 / 111320;
+                        const lonOff = 35.218 / (111320 * Math.cos(pt.lat * Math.PI / 180));
+                        subPts = [
+                            { lat: pt.lat + latOff, lon: pt.lon },
+                            { lat: pt.lat - 0.5 * latOff, lon: pt.lon + 0.866025 * lonOff },
+                            { lat: pt.lat - 0.5 * latOff, lon: pt.lon - 0.866025 * lonOff },
+                            { lat: pt.lat + latOff, lon: pt.lon }
+                        ];
+                    } else if (step.type === 'circle') {
+                        const R = 37; 
+                        let actualIdx = item.actualIndex;
+                        let prevPt = actualIdx > 0 ? points[actualIdx - 1] : null;
+                        let nextPt = actualIdx < points.length - 1 ? points[actualIdx + 1] : null;
+                        
+                        let angIn = 0;
+                        if (prevPt) {
+                            let dy = prevPt.lat - pt.lat;
+                            let dx = (prevPt.lon - pt.lon) * Math.cos(pt.lat * Math.PI / 180);
+                            angIn = Math.atan2(dx, dy);
+                        } else if (nextPt) {
+                            let dy = pt.lat - nextPt.lat;
+                            let dx = (pt.lon - nextPt.lon) * Math.cos(pt.lat * Math.PI / 180);
+                            angIn = Math.atan2(dx, dy);
+                        }
+
+                        let angOut = angIn;
+                        if (nextPt) {
+                            let dy = nextPt.lat - pt.lat;
+                            let dx = (nextPt.lon - pt.lon) * Math.cos(pt.lat * Math.PI / 180);
+                            angOut = Math.atan2(dx, dy);
+                        } else if (prevPt) {
+                            let dy = prevPt.lat - pt.lat;
+                            let dx = (prevPt.lon - pt.lon) * Math.cos(pt.lat * Math.PI / 180);
+                            angOut = Math.atan2(dx, dy);
+                        }
+
+                        let sweep = angOut - angIn;
+                        while (sweep < 0) sweep += 2 * Math.PI;
+                        while (sweep >= 2 * Math.PI) sweep -= 2 * Math.PI;
+
+                        let totalSweep = 2 * Math.PI + sweep;
+                        if (sweep < 0.01 && prevPt && nextPt) {
+                            totalSweep = 2 * Math.PI; 
+                        }
+
+                        const pointsCount = Math.max(12, Math.round(12 * (totalSweep / (2 * Math.PI)))); 
+                        for (let s = 0; s <= pointsCount; s++) {
+                            const angleRad = angIn + s * (totalSweep / pointsCount);
+                            const latOff = (R * Math.cos(angleRad)) / 111320;
+                            const lonOff = (R * Math.sin(angleRad)) / (111320 * Math.cos(pt.lat * Math.PI / 180));
+                            subPts.push({ lat: pt.lat + latOff, lon: pt.lon + lonOff });
+                        }
+                    } else if (step.type === 'straight') {
+                        const R = 45; 
+                        let actualIdx = item.actualIndex;
+                        let prevPt = actualIdx > 0 ? points[actualIdx - 1] : null;
+                        let nextPt = actualIdx < points.length - 1 ? points[actualIdx + 1] : null;
+                        
+                        let dxIn = 0, dyIn = 0;
+                        if (prevPt) {
+                            dxIn = (pt.lon - prevPt.lon) * Math.cos(pt.lat * Math.PI / 180);
+                            dyIn = pt.lat - prevPt.lat;
+                        } else if (nextPt) {
+                            dxIn = (nextPt.lon - pt.lon) * Math.cos(pt.lat * Math.PI / 180);
+                            dyIn = nextPt.lat - pt.lat;
+                        } else {
+                            dxIn = 1; dyIn = 0;
+                        }
+                        let lenIn = Math.sqrt(dxIn*dxIn + dyIn*dyIn);
+                        if (lenIn === 0) { dxIn = 1; dyIn = 0; lenIn = 1; }
+
+                        let dxOut = 0, dyOut = 0;
+                        if (nextPt) {
+                            dxOut = (nextPt.lon - pt.lon) * Math.cos(pt.lat * Math.PI / 180);
+                            dyOut = nextPt.lat - pt.lat;
+                        } else if (prevPt) {
+                            dxOut = (pt.lon - prevPt.lon) * Math.cos(pt.lat * Math.PI / 180);
+                            dyOut = pt.lat - prevPt.lat;
+                        } else {
+                            dxOut = 1; dyOut = 0;
+                        }
+                        let lenOut = Math.sqrt(dxOut*dxOut + dyOut*dyOut);
+                        if (lenOut === 0) { dxOut = 1; dyOut = 0; lenOut = 1; }
+
+                        let dotProd = (dxIn/lenIn)*(dxOut/lenOut) + (dyIn/lenIn)*(dyOut/lenOut);
+                        let angleDiff = Math.acos(Math.max(-1, Math.min(1, dotProd))) * (180 / Math.PI);
+                        
+                        let offsetDist = 0;
+                        if (angleDiff > 10) { 
+                            offsetDist = 10;
+                        }
+                        
+                        let nx = (dxIn/lenIn) - (dxOut/lenOut);
+                        let ny = (dyIn/lenIn) - (dyOut/lenOut);
+                        let nLen = Math.sqrt(nx*nx + ny*ny);
+                        
+                        let cpLat = pt.lat;
+                        let cpLon = pt.lon;
+                        
+                        if (nLen > 0.001 && offsetDist > 0) {
+                            nx /= nLen; ny /= nLen;
+                            cpLat += (offsetDist * ny) / 111320;
+                            cpLon += (offsetDist * nx) / (111320 * Math.cos(pt.lat * Math.PI / 180));
+                        }
+
+                        let rIn = prevPt ? Math.min(R, (lenIn * 111320) / 2) : R;
+                        let rOut = nextPt ? Math.min(R, (lenOut * 111320) / 2) : R;
+
+                        let pIn = {
+                            lat: cpLat - (rIn * (dyIn / lenIn)) / 111320,
+                            lon: cpLon - (rIn * (dxIn / lenIn)) / (111320 * Math.cos(pt.lat * Math.PI / 180))
+                        };
+                        let pOut = {
+                            lat: cpLat + (rOut * (dyOut / lenOut)) / 111320,
+                            lon: cpLon + (rOut * (dxOut / lenOut)) / (111320 * Math.cos(pt.lat * Math.PI / 180))
+                        };
+
+                        subPts = [ pIn, { lat: cpLat, lon: cpLon }, pOut ];
+                    } else if (step.type === 'qi') {
+                        const R = 34.641; 
+                        let actualIdx = item.actualIndex;
+                        let dx = 0, dy = 0;
+                        let prevPt = actualIdx > 0 ? points[actualIdx - 1] : null;
+                        let nextPt = actualIdx < points.length - 1 ? points[actualIdx + 1] : null;
+
+                        if (!nextPt && !prevPt) {
+                            dy = 1; dx = 0;
+                        } else if (!nextPt) {
+                            dy = pt.lat - prevPt.lat;
+                            dx = (pt.lon - prevPt.lon) * Math.cos(pt.lat * Math.PI / 180);
+                        } else {
+                            dy = nextPt.lat - pt.lat;
+                            dx = (nextPt.lon - pt.lon) * Math.cos(pt.lat * Math.PI / 180);
+                        }
+                        
+                        let angleRad = Math.atan2(dy, dx);
+                        
+                        let pOut = {
+                            lat: pt.lat + (R * Math.sin(angleRad)) / 111320,
+                            lon: pt.lon + (R * Math.cos(angleRad)) / (111320 * Math.cos(pt.lat * Math.PI / 180))
+                        };
+
+                        let ang1 = angleRad + (2 * Math.PI / 3);
+                        let p1 = {
+                            lat: pt.lat + (R * Math.sin(ang1)) / 111320,
+                            lon: pt.lon + (R * Math.cos(ang1)) / (111320 * Math.cos(pt.lat * Math.PI / 180))
+                        };
+
+                        let ang2 = angleRad - (2 * Math.PI / 3);
+                        let p2 = {
+                            lat: pt.lat + (R * Math.sin(ang2)) / 111320,
+                            lon: pt.lon + (R * Math.cos(ang2)) / (111320 * Math.cos(pt.lat * Math.PI / 180))
+                        };
+
+                        if (prevPt) {
+                            let dist1 = Math.pow(p1.lat - prevPt.lat, 2) + Math.pow((p1.lon - prevPt.lon) * Math.cos(pt.lat * Math.PI / 180), 2);
+                            let dist2 = Math.pow(p2.lat - prevPt.lat, 2) + Math.pow((p2.lon - prevPt.lon) * Math.cos(pt.lat * Math.PI / 180), 2);
+                            if (dist1 < dist2) {
+                                subPts = [p1, p2, pOut];
+                            } else {
+                                subPts = [p2, p1, pOut];
+                            }
+                        } else {
+                            subPts = [p1, p2, pOut];
+                        }
+                    }
+
+                    if (step.reverse) subPts.reverse();
+
+                    subPts.forEach(subPt => {
+                        result.push({
+                            lat: subPt.lat, lon: subPt.lon, 
+                            originalIndex: item.actualIndex, 
+                            desc: stepDesc, bgColor: bgColor
+                        });
+                    });
+                });
+            });
+
+            if (result.length > 0) {
+                result[0].bgColor = '#2ecc71';
+                if (result.length > 1) result[result.length - 1].bgColor = '#e74c3c';
+            }
+            return result;
+        }
+
+        function setRouteType(type) {
+            currentRouteType = type;
+            document.getElementById('btnDirect').classList.toggle('active', type === 'direct');
+            document.getElementById('btnZigzag').classList.toggle('active', type === 'zigzag');
+            document.getElementById('btnTriangle').classList.toggle('active', type === 'triangle');
+            document.getElementById('btnCircle').classList.toggle('active', type === 'circle');
+            document.getElementById('btnStraight').classList.toggle('active', type === 'straight');
+            document.getElementById('btnQi').classList.toggle('active', type === 'qi');
+            
+            let btnScanModal = document.getElementById('btnScan');
+            if(btnScanModal) btnScanModal.classList.toggle('active', type === 'scan');
+            
+            document.getElementById('btnCombo').classList.toggle('active', type === 'combo');
+            
+            const radios = document.getElementsByName('routeModeOut');
+            for (let r of radios) { if (r.value === type) r.checked = true; }
+            
+            updateComboUI();
+            updateMap();
+        }
+
+        function syncInputs(type, source) {
+            if (type === 'speed') {
+                const val = document.getElementById(source === 'main' ? 'speed' : 'modalSpeed').value;
+                document.getElementById(source === 'main' ? 'modalSpeed' : 'speed').value = val;
+            }
+            updateMap();
+        }
+
+        function toggleEditMode() {
+            editModeEnabled = !editModeEnabled;
+            const btn = document.getElementById('btnEditMode');
+            if (editModeEnabled) {
+                btn.style.backgroundColor = '#d35400';
+                btn.innerText = '✏️ 關閉路線修改';
+            } else {
+                btn.style.backgroundColor = '#27ae60';
+                btn.innerText = '✏️ 開啟路線修改';
+            }
+            updateMap(); 
+        }
+
+        function toggleMapClickAdd() {
+            mapClickAddEnabled = !mapClickAddEnabled;
+            const btn = document.getElementById('btnMapClickAdd');
+            const mapContainer = document.getElementById('map');
+            if (mapClickAddEnabled) {
+                btn.style.backgroundColor = '#9b59b6';
+                btn.innerText = '🖱️ 關閉地圖繪製';
+                mapContainer.classList.add('drawing-mode');
+            } else {
+                btn.style.backgroundColor = '#34495e';
+                btn.innerText = '🖱️ 開啟地圖繪製';
+                mapContainer.classList.remove('drawing-mode');
+            }
+        }
+
+        map.on('click', function(e) {
+            if (mapClickAddEnabled) {
+                saveHistory();
+                const lat = e.latlng.lat.toFixed(8);
+                const lon = e.latlng.lng.toFixed(8);
+                const coordsTextArea = document.getElementById('coords');
+                let currentVal = coordsTextArea.value;
+                if (currentVal !== "" && !currentVal.endsWith('\n')) {
+                    currentVal += '\n';
+                }
+                coordsTextArea.value = currentVal + `${lat}, ${lon}\n`;
+                updateMap();
+            }
+        });
+
+        function toggleS2Grid() {
+            s2Enabled = !s2Enabled;
+            const btn = document.getElementById('btnS2Grid');
+            if (s2Enabled) {
+                btn.style.backgroundColor = '#8e44ad';
+                btn.innerText = '🌐 關閉 S2 網格';
+                if (!s2Layer) s2Layer = L.featureGroup().addTo(map);
+                map.on('moveend', drawS2Grid);
+                map.on('zoomend', drawS2Grid);
+                drawS2Grid();
+            } else {
+                btn.style.backgroundColor = '#9b59b6';
+                btn.innerText = '🌐 開啟 S2 網格';
+                map.off('moveend', drawS2Grid);
+                map.off('zoomend', drawS2Grid);
+                if (s2Layer) s2Layer.clearLayers();
+            }
+        }
+
+        function drawS2Grid() {
+            if (!s2Layer) return;
+            s2Layer.clearLayers();
+            if (map.getZoom() < 15) return; 
+            
+            const S2 = window.s2geometry ? window.s2geometry.S2 : (window.S2 || null);
+            if (!S2) {
+                console.warn('S2 library missing or not loaded.');
+                alert('S2 網格模組尚未載入完成，請確認網路狀態後再試一次。');
+                toggleS2Grid(); 
+                return;
+            }
+
+            const bounds = map.getBounds();
+            const latStep = 0.0005; 
+            const lonStep = 0.0005;
+
+            let keys = new Set();
+            for (let lat = bounds.getSouth() - 0.002; lat <= bounds.getNorth() + 0.002; lat += latStep) {
+                for (let lon = bounds.getWest() - 0.002; lon <= bounds.getEast() + 0.002; lon += lonStep) {
+                    keys.add(S2.latLngToKey(lat, lon, 17));
+                }
+            }
+
+            keys.forEach(key => {
+                try {
+                    let cell = S2.S2Cell.FromHilbertQuadKey(key);
+                    let corners = cell.getCornerLatLngs();
+                    let latlngs = corners.map(c => [c.lat, c.lng]);
+                    
+                    L.polygon(latlngs, {
+                        color: '#3498db', // 真實藍線網格
+                        weight: 2, 
+                        fill: false, 
+                        interactive: false, 
+                        className: 's2-grid-layer'
+                    }).addTo(s2Layer);
+                } catch (err) {
+                    // 安全降級防護機制
+                    let pos = S2.keyToLatLng(key);
+                    const dLat = 0.00034 / 2;
+                    const dLon = (0.00034 / Math.cos(pos.lat * Math.PI / 180)) / 2;
+                    L.rectangle([
+                        [pos.lat - dLat, pos.lng - dLon],
+                        [pos.lat + dLat, pos.lng + dLon]
+                    ], {
+                        color: '#3498db', weight: 2, fill: false, interactive: false, className: 's2-grid-layer'
+                    }).addTo(s2Layer);
+                }
+            });
+        }
+
+        function updateComboUI() {
+            const displayState = (currentRouteType === 'combo') ? 'block' : 'none';
+            document.getElementById('comboBuilderMain').style.display = displayState;
+            document.getElementById('comboBuilderModal').style.display = displayState;
+
+            if (currentRouteType !== 'combo') return;
+
+            let html = '<div style="font-size:14px; font-weight:bold; color:#7f8c8d; margin-bottom:8px;">自訂組合順序：</div><div class="combo-seq-list">';
+            comboSequence.forEach((step, index) => {
+                let text, bgClass;
+                if (step.type === 'zigzag') { text = '🌸 Z字'; bgClass = 'zigzag'; }
+                else if (step.type === 'triangle') { text = '🔺 三角'; bgClass = 'triangle'; }
+                else if (step.type === 'circle') { text = '⭕ 繞圈'; bgClass = 'circle'; }
+                else if (step.type === 'straight') { text = '➖ 直線'; bgClass = 'straight'; }
+                else if (step.type === 'qi') { text = '〰️ 走ㄑ'; bgClass = 'qi'; }
+                else if (step.type === 'scan') { text = '🎯 掃描'; bgClass = 'scan'; }
+                else { text = '📍 直連'; bgClass = ''; }
+                
+                if (step.reverse) text += ' <span style="color:#ffeb3b;">(反向)</span>';
+                
+                html += `
+                    <div class="combo-badge ${bgClass}">
+                        ${text} 
+                        <div class="combo-badge-rev" onclick="toggleComboReverse(${index})" title="切換此步驟正向/反向">🔁</div>
+                        <div class="combo-badge-del" onclick="removeComboStep(${index})" title="移除此步驟">×</div>
+                    </div>`;
+                if (index < comboSequence.length - 1) {
+                    html += `<div style="color:#bdc3c7; font-weight:bold;">➔</div>`;
+                }
+            });
+            
+            let ptsCount = parseCoordinates().length;
+            let scanDisabledStr = ptsCount < 3 ? 'disabled title="需要至少3組座標"' : '';
+
+            html += `</div>
+                     <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                        <button class="combo-add-btn" onclick="addComboStep('direct')">➕ 直連</button>
+                        <button class="combo-add-btn zigzag" onclick="addComboStep('zigzag')">➕ Z字</button>
+                        <button class="combo-add-btn triangle" onclick="addComboStep('triangle')">➕ 三角</button>
+                        <button class="combo-add-btn circle" onclick="addComboStep('circle')">➕ 繞圈</button>
+                        <button class="combo-add-btn straight" onclick="addComboStep('straight')">➕ 直線</button>
+                        <button class="combo-add-btn qi" onclick="addComboStep('qi')">➕ 走ㄑ</button>
+                        <button class="combo-add-btn scan" onclick="addComboStep('scan')" ${scanDisabledStr}>➕ 掃描</button>
+                     </div>`;
+
+            document.getElementById('comboBuilderMain').innerHTML = html;
+            document.getElementById('comboBuilderModal').innerHTML = html;
+        }
+
+        function toggleComboReverse(index) {
+            comboSequence[index].reverse = !comboSequence[index].reverse;
+            updateComboUI();
+            updateMap();
+        }
+
+        function addComboStep(type) {
+            comboSequence.push({ type: type, reverse: false });
+            updateComboUI();
+            updateMap();
+        }
+
+        function removeComboStep(index) {
+            if (comboSequence.length <= 1) {
+                alert("最少需要保留一個執行步驟！"); return;
+            }
+            comboSequence.splice(index, 1);
+            updateComboUI();
+            updateMap();
+        }
+
+        function movePointUp(index) {
+            saveHistory();
+            let lines = document.getElementById('coords').value.trim().split('\n').filter(l=>l.trim()!=='');
+            if (index > 0 && index < lines.length) {
+                [lines[index - 1], lines[index]] = [lines[index], lines[index - 1]];
+                document.getElementById('coords').value = lines.join('\n') + '\n';
+                updateMap(); 
+            }
+        }
+        function movePointDown(index) {
+            saveHistory();
+            let lines = document.getElementById('coords').value.trim().split('\n').filter(l=>l.trim()!=='');
+            if (index >= 0 && index < lines.length - 1) {
+                [lines[index + 1], lines[index]] = [lines[index], lines[index + 1]];
+                document.getElementById('coords').value = lines.join('\n') + '\n';
+                updateMap();
+            }
+        }
+        function deletePoint(index) {
+            saveHistory();
+            let lines = document.getElementById('coords').value.trim().split('\n').filter(l=>l.trim()!=='');
+            if (index >= 0 && index < lines.length) {
+                lines.splice(index, 1);
+                document.getElementById('coords').value = lines.join('\n') + (lines.length > 0 ? '\n' : '');
+                updateMap();
+            }
+        }
+        function reverseRoute() {
+            saveHistory();
+            const coordsTextArea = document.getElementById('coords');
+            const text = coordsTextArea.value.trim();
+            if (!text) { alert("請先輸入或載入座標點！"); return; }
+            
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            lines.reverse();
+            coordsTextArea.value = lines.join('\n') + '\n';
+            updateMap();
+        }
+
+        function optimizeRoute() {
+            let points = parseCoordinates();
+            if (points.length <= 2) {
+                alert("📍 點位數量太少，不需要進行最佳化喔！"); return;
+            }
+            
+            saveHistory();
+            coordsBeforeOptimization = document.getElementById('coords').value;
+            const btnUndoOpt = document.getElementById('btnUndoOpt');
+            if (btnUndoOpt) btnUndoOpt.style.display = 'inline-block';
+
+            let unvisited = [...points];
+            let currentRoute = [unvisited.shift()];
+
+            while (unvisited.length > 0) {
+                let nearestIdx = -1; let minDist = Infinity;
+                for (let i = 0; i < unvisited.length; i++) {
+                    let dist = getDistance(
+                        currentRoute[currentRoute.length - 1].lat, currentRoute[currentRoute.length - 1].lon, 
+                        unvisited[i].lat, unvisited[i].lon
+                    );
+                    if (dist < minDist) { minDist = dist; nearestIdx = i; }
+                }
+                currentRoute.push(unvisited.splice(nearestIdx, 1)[0]);
+            }
+
+            let improved = true; let maxIterations = 100; let iter = 0;
+            while (improved && iter < maxIterations) {
+                improved = false; iter++;
+                for (let i = 1; i < currentRoute.length - 1; i++) {
+                    for (let j = i + 1; j < currentRoute.length; j++) {
+                        let d_current = getDistance(currentRoute[i-1].lat, currentRoute[i-1].lon, currentRoute[i].lat, currentRoute[i].lon);
+                        if (j < currentRoute.length - 1) d_current += getDistance(currentRoute[j].lat, currentRoute[j].lon, currentRoute[j+1].lat, currentRoute[j+1].lon);
+                        let d_new = getDistance(currentRoute[i-1].lat, currentRoute[i-1].lon, currentRoute[j].lat, currentRoute[j].lon);
+                        if (j < currentRoute.length - 1) d_new += getDistance(currentRoute[i].lat, currentRoute[i].lon, currentRoute[j+1].lat, currentRoute[j+1].lon);
+
+                        if (d_new < d_current - 0.000001) {
+                            let segment = currentRoute.slice(i, j + 1).reverse();
+                            currentRoute.splice(i, segment.length, ...segment);
+                            improved = true;
+                        }
+                    }
+                }
+            }
+
+            document.getElementById('coords').value = currentRoute.map(p => p.originalLine).join('\n') + '\n';
+            updateMap();
+            alert("✨ 耗時最佳化完成！\n系統已替您解開打結的路徑，將總距離壓縮至最短。");
+        }
+
+        // --- 核心：地圖與資訊更新 ---
+        function updateMap() {
+            let points = parseCoordinates();
+            
+            let isScanEligible = points.length >= 3;
+            document.getElementsByName('routeModeOut').forEach(r => {
+                if (r.value === 'scan') r.disabled = !isScanEligible;
+            });
+            let btnScanModal = document.getElementById('btnScan');
+            if (btnScanModal) btnScanModal.disabled = !isScanEligible;
+            
+            if (!isScanEligible && currentRouteType === 'scan') {
+                setRouteType('direct');
+            }
+
+            if (points.length === 0) {
+                infoDisplayString = "";
+                lastCheckedCoord = null;
+                currentTargetOffset = null; // 清除時差
+                locCountry = ""; locState = ""; locCity = "";
+                const mainInfo = document.getElementById('mainInfoDisplay');
+                if (mainInfo) mainInfo.innerHTML = "";
+                updateSuggestedName();
+                updateComboUI(); 
+            } else {
+                checkLocationInfo(points[0].lat, points[0].lon);
+                updateComboUI(); 
+            }
+
+            const originalPointCount = points.length;
+            const finalPointsMeta = expandRouteWithMeta(points);
+            const latlngs = finalPointsMeta.map(p => [p.lat, p.lon]);
+
+            let totalDistance = 0;
+            for (let i = 1; i < finalPointsMeta.length; i++) {
+                totalDistance += getDistance(finalPointsMeta[i-1].lat, finalPointsMeta[i-1].lon, finalPointsMeta[i].lat, finalPointsMeta[i].lon);
+            }
+            
+            const speedKmh = parseFloat(document.getElementById('speed').value) || 19;
+            const timeHours = totalDistance / speedKmh;
+            const timeMinutes = Math.round(timeHours * 60);
+
+            const statsDiv = document.getElementById('routeStats');
+            if (statsDiv) {
+                statsDiv.innerHTML = `⏱️ 預估耗時: <span class="stat-highlight">約 ${timeMinutes} 分鐘</span> <span class="stat-sub">(總距離: ${totalDistance.toFixed(2)} 公里, 時速: ${speedKmh} km/h)</span>`;
+                
+                if (infoDisplayString) {
+                    statsDiv.innerHTML += `<div id="infoDisplayLabel" style="margin-top: 6px; font-size: 14px; color: #8e44ad;">${infoDisplayString}</div>`;
+                }
+            }
+
+            if (polyline) map.removeLayer(polyline);
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            if (latlngs.length > 0) {
+                // 強制設為 interactive: false 確保繪製模式點擊不會被軌跡吃掉
+                polyline = L.polyline(latlngs, {color: '#27ae60', weight: 4, opacity: 0.8, interactive: false}).addTo(map);
+                
+                latlngs.forEach((latlng, index) => {
+                    const ptMeta = finalPointsMeta[index];
+                    const pointNumber = index + 1;
+                    
+                    const iconHtml = `<div class="point-marker" style="background-color: ${ptMeta.bgColor};">${pointNumber}</div>`;
+                    const customIcon = L.divIcon({ className: 'custom-div-icon', html: iconHtml, iconSize: [22, 22], iconAnchor: [11, 11] });
+                    const marker = L.marker(latlng, {icon: customIcon, draggable: editModeEnabled}).addTo(map);
+
+                    let dragStartPos = null;
+                    marker.on('dragstart', function(e) {
+                        saveHistory();
+                        isDragging = true; 
+                        dragStartPos = e.target.getLatLng();
+                    });
+
+                    marker.on('dragend', function(e) {
+                        const dragEndPos = e.target.getLatLng();
+                        const dLat = dragEndPos.lat - dragStartPos.lat;
+                        const dLon = dragEndPos.lng - dragStartPos.lng;
+
+                        let lines = document.getElementById('coords').value.trim().split('\n').filter(l=>l.trim()!=='');
+                        if (ptMeta.originalIndex >= 0 && ptMeta.originalIndex < lines.length) {
+                            let parts = lines[ptMeta.originalIndex].split(/[, \t]+/);
+                            if(parts.length >= 2) {
+                                let oldLat = parseFloat(parts[0]);
+                                let oldLon = parseFloat(parts[1]);
+                                if(!isNaN(oldLat) && !isNaN(oldLon)) {
+                                    let newLat = oldLat + dLat;
+                                    let newLon = oldLon + dLon;
+                                    lines[ptMeta.originalIndex] = `${newLat.toFixed(8)}, ${newLon.toFixed(8)}`;
+                                    document.getElementById('coords').value = lines.join('\n') + '\n';
+                                    updateMap();
+                                }
+                            }
+                        }
+                        
+                        setTimeout(() => { isDragging = false; }, 100);
+                    });
+
+                    let popupHtml = `
+                        <div style="text-align: center; min-width: 120px; padding: 2px;">
+                            <div style="margin-bottom: 6px; font-size: 13px; color: #2c3e50;">
+                                <strong>軌跡點 ${pointNumber}</strong>
+                                <div style="font-size:11px; color:#e67e22; margin-top:2px;">${ptMeta.desc} <br> 原座標 ${ptMeta.originalIndex + 1}</div>
+                            </div>
+                            <div style="display: flex; gap: 4px; justify-content: center;">
+                                <button class="btn-icon" style="padding: 4px 6px; font-size:14px;" onclick="movePointUp(${ptMeta.originalIndex})" ${ptMeta.originalIndex === 0 ? 'disabled' : ''} title="往前一號">⬆️</button>
+                                <button class="btn-icon" style="padding: 4px 6px; font-size:14px;" onclick="movePointDown(${ptMeta.originalIndex})" ${ptMeta.originalIndex === originalPointCount - 1 ? 'disabled' : ''} title="往後一號">⬇️</button>
+                                <button class="btn-icon btn-del" style="padding: 4px 6px; font-size:14px;" onclick="deletePoint(${ptMeta.originalIndex})" title="刪除此點">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                    marker.bindPopup(popupHtml, { autoPan: false });
+                    markers.push(marker);
+                });
+
+                // 只有在 editModeEnabled (修改路線模式) 開啟時才顯示的「折點」拖曳控制把手
+                if (editModeEnabled) {
+                    let origPts = parseCoordinates();
+                    for (let i = 0; i < origPts.length - 1; i++) {
+                        let p1 = origPts[i];
+                        let p2 = origPts[i+1];
+                        let midLat = (p1.lat + p2.lat) / 2;
+                        let midLon = (p1.lon + p2.lon) / 2;
+                        
+                        let midIcon = L.divIcon({ 
+                            className: 'custom-div-icon', 
+                            html: `<div style="background-color: #fff; border: 3px solid #3498db; border-radius: 50%; width: 12px; height: 12px; opacity: 0.8; box-shadow: 0 1px 3px rgba(0,0,0,0.5);"></div>`, 
+                            iconSize: [12, 12], 
+                            iconAnchor: [6, 6] 
+                        });
+                        
+                        let midMarker = L.marker([midLat, midLon], {icon: midIcon, draggable: true, zIndexOffset: -100}).addTo(map);
+                        midMarker.bindTooltip('拖曳以新增折點', {direction: 'top', offset: [0, -10]});
+                        
+                        midMarker.on('dragstart', function() {
+                            saveHistory();
+                            isDragging = true;
+                        });
+                        
+                        midMarker.on('dragend', function(e) {
+                            const dragEndPos = e.target.getLatLng();
+                            let lines = document.getElementById('coords').value.trim().split('\n').filter(l=>l.trim()!=='');
+                            lines.splice(i + 1, 0, `${dragEndPos.lat.toFixed(8)}, ${dragEndPos.lng.toFixed(8)}`);
+                            document.getElementById('coords').value = lines.join('\n') + '\n';
+                            
+                            setTimeout(() => { isDragging = false; }, 100);
+                            updateMap();
+                        });
+                        
+                        markers.push(midMarker);
+                    }
+                }
+
+                if (document.getElementById('mapModal').style.display === 'flex') {
+                    if (!mapClickAddEnabled && !isDragging) {
+                        map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+                    }
+                }
+            }
+        }
+
+        function openMapModal() {
+            const modal = document.getElementById('mapModal');
+            modal.style.display = 'flex';
+            syncInputs('speed', 'main'); 
+            
+            setTimeout(() => {
+                map.invalidateSize();
+                if (polyline) map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+            }, 150); 
+        }
+
+        function closeMapModal(event) {
+            if (!event || event.target.id === 'mapModal' || event.target.className === 'close-btn') {
+                document.getElementById('mapModal').style.display = 'none';
+                if (mapClickAddEnabled) toggleMapClickAdd(); 
+            }
+        }
+
+        function generateAndDownloadGPX() {
+            const routeNameRaw = document.getElementById('routeName').value.trim() || 'MyRoute';
+            const routeName = routeNameRaw.replace(/[\\/:*?"<>|]/g, '_');
+            const speedKmh = parseFloat(document.getElementById('speed').value) || 19;
+            
+            let points = parseCoordinates();
+            const finalPointsMeta = expandRouteWithMeta(points);
+
+            if (finalPointsMeta.length === 0) {
+                alert("請至少輸入一組有效座標！"); return;
+            }
+
+            let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+            gpxContent += `<gpx version="1.1" creator="PikminPathGen_Pro" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+            gpxContent += `<metadata><name>${routeName}</name><desc>Pikmin Auto Route</desc></metadata>\n`;
+
+            let currentTime = new Date();
+            let trkptsHtml = "";
+
+            for (let i = 0; i < finalPointsMeta.length; i++) {
+                const pt = finalPointsMeta[i];
+                if (i > 0) {
+                    const prevPt = finalPointsMeta[i-1];
+                    const distKm = getDistance(prevPt.lat, prevPt.lon, pt.lat, pt.lon);
+                    const msNeeded = (distKm / speedKmh) * 60 * 60 * 1000;
+                    currentTime = new Date(currentTime.getTime() + msNeeded);
+                }
+
+                const timeStr = currentTime.toISOString();
+                gpxContent += `<wpt lat="${pt.lat.toFixed(8)}" lon="${pt.lon.toFixed(8)}"><name>P${i + 1}</name><time>${timeStr}</time></wpt>\n`;
+                trkptsHtml += `<trkpt lat="${pt.lat.toFixed(8)}" lon="${pt.lon.toFixed(8)}"><time>${timeStr}</time></trkpt>\n`;
+            }
+
+            gpxContent += `<trk><name>${routeName}</name><trkseg>\n${trkptsHtml}</trkseg></trk>\n</gpx>`;
+
+            const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
+            const url = URL.createObjectURL(blob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = `${routeName}.gpx`;
+            
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        // --- 下載純文字座標功能 ---
+        function downloadTXT() {
+            const coordsTextArea = document.getElementById('coords');
+            const text = coordsTextArea.value.trim();
+            if (!text) {
+                alert("請先輸入或載入座標點！");
+                return;
+            }
+
+            const routeNameRaw = document.getElementById('routeName').value.trim() || 'MyRoute';
+            const routeName = routeNameRaw.replace(/[\\/:*?"<>|]/g, '_');
+
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = `${routeName}.txt`;
+            
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(url);
+        }
+
+        // 初始化
+        document.getElementById('coords').value = "";
+        updateComboUI();
+        updateMap();
+    </script>
+</body>
+</html>
