@@ -2,24 +2,329 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Corn工具庫</title>
-</head>
-<body style="margin: 0; font-family: sans-serif;">
+    <style>
+        /* 全域重設 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-    <div style="text-align: center; margin: 30px auto; max-width: 400px;">
-         <button onclick="switchTab('routedraw.html')">路徑生產器</button>
-        <button onclick="switchTab('S2CellMap.html')">S2網格掃盆</button>
-        <button onclick="switchTab('Coordinate-assignment.html')">座標分配繪製花田</button>
-        <button onclick="switchTab('divide-the-work.html')">強開團分配</button>
-       
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #1a1a1a; /* 深色暗黑背景，凸顯金色錢幣的主題 */
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* 首頁視圖 (Home View) */
+        #homeView {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 20px;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        /* 手機直式比例的卡片容器 */
+        .card-container {
+            position: relative;
+            width: 100%;
+            max-width: 420px; /* 適合黃金手機版面比例 */
+            aspect-ratio: 9 / 19.5; /* 配合 1489065.jpg 圖片的高寬比例 */
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* 背景圖片 */
+        .card-bg {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* 漸層覆蓋層，確保文字與按鈕清晰 */
+        .card-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0.6) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 35px 20px;
+            z-index: 2;
+        }
+
+        /* 頂部標題：毛玻璃膠囊風格 */
+        .title-box {
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 30px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            width: 85%;
+        }
+
+        .title-box h1 {
+            font-size: 22px;
+            font-weight: 900;
+            color: #ffd700; /* 金色標題，呼應鈔票兔兔 */
+            letter-spacing: 3px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+        }
+
+        /* 下方按鈕群組 */
+        .button-group {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: auto;
+            margin-bottom: 10px;
+        }
+
+        /* 頂級毛玻璃質感半透明按鈕 */
+        .menu-btn {
+            width: 100%;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 16px;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        /* 按鈕說明文字（副標題） */
+        .menu-btn span {
+            font-size: 10px;
+            font-weight: normal;
+            opacity: 0.75;
+            letter-spacing: 0.5px;
+        }
+
+        /* 按鈕懸停效果 (Hover) */
+        .menu-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.45);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(255, 215, 0, 0.25); /* 金色微光外溢 */
+            color: #ffd700;
+        }
+
+        .menu-btn:active {
+            transform: translateY(-1px);
+        }
+
+        /* iframe 內嵌視圖 (Iframe View) */
+        #iframeView {
+            display: none; /* 預設隱藏，待切換時開啟 */
+            width: 100%;
+            height: 100vh;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        /* iframe 頂部導航列 */
+        .iframe-header {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 0 8px;
+        }
+
+        /* 目前載入的工具名稱 */
+        .current-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 返回首頁按鈕：半透明玻璃質感 */
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 18px;
+            border-radius: 30px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateX(-3px);
+            color: #ffd700;
+        }
+
+        /* iframe 外框包裝器 */
+        .iframe-wrapper {
+            width: 100%;
+            max-width: 1200px;
+            height: calc(100vh - 90px); /* 扣掉 header 空間 */
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .iframe-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #ffffff;
+        }
+
+        /* 行動裝置或短螢幕縮放優化 */
+        @media (max-height: 740px) {
+            .card-container {
+                max-width: 330px;
+            }
+            .title-box {
+                padding: 10px 20px;
+            }
+            .title-box h1 {
+                font-size: 19px;
+            }
+            .button-group {
+                gap: 9px;
+            }
+            .menu-btn {
+                padding: 11px 15px;
+                font-size: 13.5px;
+            }
+            .menu-btn span {
+                font-size: 9px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="homeView">
+        <div class="card-container">
+            <img class="card-bg" src="1489065.jpg" alt="Corn工具庫背景圖">
+            
+            <div class="card-overlay">
+                <div class="title-box">
+                    <h1>Corn 工具庫</h1>
+                </div>
+                
+                <div class="button-group">
+                    <button class="menu-btn" onclick="openPage('routedraw.html', '路徑生產器')">
+                        路徑生產器
+                        <span>routedraw.html</span>
+                    </button>
+                    <button class="menu-btn" onclick="openPage('S2CellMap.html', 'S2網格掃盆')">
+                        S2網格掃盆
+                        <span>S2CellMap.html</span>
+                    </button>
+                    <button class="menu-btn" onclick="openPage('Coordinate-assignment.html', '座標分配繪製花田')">
+                        座標分配繪製花田
+                        <span>Coordinate-assignment.html</span>
+                    </button>
+                    <button class="menu-btn" onclick="openPage('divide-the-work.html', '強開團分配')">
+                        強開團分配
+                        <span>divide-the-work.html</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <iframe id="contentFrame" src="1489065.jpg" style="width: 100%; height: 90vh; border: none;"></iframe>
+    <div id="iframeView">
+        <div class="iframe-header">
+            <button class="back-btn" onclick="backToHome()">
+                ← 返回首頁
+            </button>
+            <div class="current-title" id="pageTitle">網頁名稱</div>
+        </div>
+        
+        <div class="iframe-wrapper">
+            <iframe id="contentFrame" src=""></iframe>
+        </div>
+    </div>
 
     <script>
-        function switchTab(pageUrl) {
-            document.getElementById('contentFrame').src = pageUrl;
+        const homeView = document.getElementById('homeView');
+        const iframeView = document.getElementById('iframeView');
+        const contentFrame = document.getElementById('contentFrame');
+        const pageTitle = document.getElementById('pageTitle');
+
+        // 切換分頁
+        function openPage(url, title) {
+            // 1. 寫入網址與標題
+            contentFrame.src = url;
+            pageTitle.textContent = title;
+            
+            // 2. 切換動畫：淡出首頁，淡入 iframe 頁面
+            homeView.style.opacity = '0';
+            setTimeout(() => {
+                homeView.style.display = 'none';
+                iframeView.style.display = 'flex';
+                // 強制重繪確保 CSS transition 觸發
+                iframeView.offsetHeight; 
+                iframeView.style.opacity = '1';
+            }, 400);
+        }
+
+        // 返回首頁
+        function backToHome() {
+            iframeView.style.opacity = '0';
+            setTimeout(() => {
+                iframeView.style.display = 'none';
+                contentFrame.src = 'about:blank'; // 清空 iframe，節省瀏覽器效能
+                
+                homeView.style.display = 'flex';
+                // 強制重繪
+                homeView.offsetHeight;
+                homeView.style.opacity = '1';
+            }, 400);
         }
     </script>
+
 </body>
 </html>
