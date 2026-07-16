@@ -60,9 +60,16 @@
             margin-bottom: 25px;
         }
 
+        /* 密碼輸入框容器（為了放置眼睛按鈕） */
+        .password-container {
+            position: relative;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
         .password-input {
             width: 100%;
-            padding: 14px;
+            padding: 14px 45px 14px 14px; /* 右側留空間給眼睛圖示 */
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             background: rgba(255, 255, 255, 0.1);
@@ -71,12 +78,31 @@
             text-align: center;
             outline: none;
             transition: all 0.3s ease;
-            margin-bottom: 15px;
+            
+            /* 關鍵：使用 CSS 讓文字變成圓點，卻不影響中文輸入法喚醒 */
+            -webkit-text-security: disc;
         }
 
         .password-input:focus {
             border-color: #ffd700;
             box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        /* 顯示/隱藏密碼的眼睛按鈕 */
+        .eye-btn {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 18px;
+            opacity: 0.6;
+            user-select: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .eye-btn:hover {
+            opacity: 1;
         }
 
         .unlock-btn {
@@ -120,7 +146,7 @@
 
         /* ---------------- 首頁視圖 (Home View) ---------------- */
         #homeView {
-            display: none; /* 預設隱藏，通過驗證後開啟 */
+            display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -130,7 +156,6 @@
             transition: opacity 0.4s ease, transform 0.4s ease;
         }
 
-        /* 手機直式比例的卡片容器 */
         .card-container {
             position: relative;
             width: 100%;
@@ -318,8 +343,13 @@
     <div id="lockView">
         <div class="lock-box" id="lockBox">
             <h2>🔒 Corn 工具庫</h2>
-            p>請輸入操作密碼以繼續使用</p>
-            <input type="password" id="passInput" class="password-input" placeholder="請輸入密碼" onkeypress="handleKeyPress(event)">
+            <p>請輸入操作密碼以繼續使用</p>
+            
+            <div class="password-container">
+                <input type="text" id="passInput" class="password-input" placeholder="請輸入密碼" inputmode="text" onkeypress="handleKeyPress(event)">
+                <span class="eye-btn" id="eyeBtn" onclick="togglePasswordVisibility()" title="顯示/隱藏密碼">👁️</span>
+            </div>
+            
             <button class="unlock-btn" onclick="checkPassword()">解鎖進入</button>
             <div id="errorMsg">密碼錯誤，請重試！</div>
         </div>
@@ -374,6 +404,7 @@
         const passInput = document.getElementById('passInput');
         const errorMsg = document.getElementById('errorMsg');
         const lockBox = document.getElementById('lockBox');
+        const eyeBtn = document.getElementById('eyeBtn');
 
         // 設定您的預設密碼
         const CORRECT_PASS = "小小花農";
@@ -383,9 +414,22 @@
             if (sessionStorage.getItem("isUnlocked") === "true") {
                 showHomeDirectly();
             } else {
-                passInput.focus(); // 若未解鎖，自動將游標聚焦到密碼輸入框
+                passInput.focus();
             }
         };
+
+        // 切換密碼顯示/隱藏狀態
+        function togglePasswordVisibility() {
+            // 如果目前有套用 disc 遮罩，就移除遮罩讓文字顯示出來
+            if (passInput.style.webkitTextSecurity === 'none') {
+                passInput.style.webkitTextSecurity = 'disc';
+                eyeBtn.style.opacity = '0.6';
+            } else {
+                passInput.style.webkitTextSecurity = 'none';
+                eyeBtn.style.opacity = '1';
+            }
+            passInput.focus();
+        }
 
         // 支援在密碼框直接按 Enter 鍵解鎖
         function handleKeyPress(event) {
@@ -397,10 +441,8 @@
         // 檢查密碼正確與否
         function checkPassword() {
             if (passInput.value === CORRECT_PASS) {
-                // 1. 密碼正確，記錄在 session 中 (重啟瀏覽器後失效，保障安全)
                 sessionStorage.setItem("isUnlocked", "true");
                 
-                // 2. 執行過場動畫切換至首頁
                 lockView.style.opacity = '0';
                 setTimeout(() => {
                     lockView.style.display = 'none';
@@ -409,10 +451,9 @@
                     homeView.style.opacity = '1';
                 }, 400);
             } else {
-                // 密碼錯誤：顯示錯誤訊息並晃動視窗
                 errorMsg.style.opacity = '1';
                 lockBox.classList.remove('shake');
-                void lockBox.offsetWidth; // 觸發重繪以重複播放動畫
+                void lockBox.offsetWidth; 
                 lockBox.classList.add('shake');
                 
                 passInput.value = '';
