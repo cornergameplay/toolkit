@@ -14,7 +14,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #1a1a1a; /* 深色暗黑背景，凸顯金色錢幣的主題 */
+            background-color: #1a1a1a; /* 深色暗黑背景 */
             color: #ffffff;
             min-height: 100vh;
             display: flex;
@@ -23,8 +23,8 @@
             overflow-x: hidden;
         }
 
-        /* 首頁視圖 (Home View) */
-        #homeView {
+        /* ---------------- 密碼鎖定畫面 (Lock View) ---------------- */
+        #lockView {
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -34,19 +34,114 @@
             transition: opacity 0.4s ease, transform 0.4s ease;
         }
 
+        .lock-box {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 215, 0, 0.3); /* 金色微光邊框 */
+            padding: 40px 30px;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            text-align: center;
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .lock-box h2 {
+            font-size: 22px;
+            color: #ffd700;
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+
+        .lock-box p {
+            font-size: 13px;
+            color: #cccccc;
+            margin-bottom: 25px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            font-size: 16px;
+            text-align: center;
+            outline: none;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .password-input:focus {
+            border-color: #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .unlock-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #ffd700, #ffa500);
+            border: none;
+            border-radius: 12px;
+            color: #1a1a1a;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+        }
+
+        .unlock-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
+        }
+
+        /* 錯誤提示文字 */
+        #errorMsg {
+            color: #ff4d4d;
+            font-size: 13px;
+            margin-top: 12px;
+            height: 18px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        /* 密碼錯誤時的左右搖晃動畫 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* ---------------- 首頁視圖 (Home View) ---------------- */
+        #homeView {
+            display: none; /* 預設隱藏，通過驗證後開啟 */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
         /* 手機直式比例的卡片容器 */
         .card-container {
             position: relative;
             width: 100%;
-            max-width: 420px; /* 適合黃金手機版面比例 */
-            aspect-ratio: 9 / 19.5; /* 配合 1489065.jpg 圖片的高寬比例 */
+            max-width: 420px;
+            aspect-ratio: 9 / 19.5;
             border-radius: 24px;
             overflow: hidden;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
-        /* 背景圖片 */
         .card-bg {
             width: 100%;
             height: 100%;
@@ -54,7 +149,6 @@
             display: block;
         }
 
-        /* 漸層覆蓋層，確保文字與按鈕清晰 */
         .card-overlay {
             position: absolute;
             top: 0;
@@ -70,7 +164,6 @@
             z-index: 2;
         }
 
-        /* 頂部標題：毛玻璃膠囊風格 */
         .title-box {
             background: rgba(0, 0, 0, 0.55);
             backdrop-filter: blur(10px);
@@ -86,12 +179,11 @@
         .title-box h1 {
             font-size: 22px;
             font-weight: 900;
-            color: #ffd700; /* 金色標題，呼應鈔票兔兔 */
+            color: #ffd700;
             letter-spacing: 3px;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
         }
 
-        /* 下方按鈕群組 */
         .button-group {
             width: 100%;
             display: flex;
@@ -101,7 +193,6 @@
             margin-bottom: 10px;
         }
 
-        /* 頂級毛玻璃質感半透明按鈕 */
         .menu-btn {
             width: 100%;
             padding: 14px 18px;
@@ -122,7 +213,6 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
         }
 
-        /* 按鈕說明文字（副標題） */
         .menu-btn span {
             font-size: 10px;
             font-weight: normal;
@@ -130,12 +220,11 @@
             letter-spacing: 0.5px;
         }
 
-        /* 按鈕懸停效果 (Hover) */
         .menu-btn:hover {
             background: rgba(255, 255, 255, 0.25);
             border-color: rgba(255, 255, 255, 0.45);
             transform: translateY(-4px);
-            box-shadow: 0 12px 24px rgba(255, 215, 0, 0.25); /* 金色微光外溢 */
+            box-shadow: 0 12px 24px rgba(255, 215, 0, 0.25);
             color: #ffd700;
         }
 
@@ -143,31 +232,29 @@
             transform: translateY(-1px);
         }
 
-        /* iframe 內嵌視圖 (Iframe View) - 調整為滿版無邊框設計 */
+        /* ---------------- iframe 內嵌視圖 (Iframe View) ---------------- */
         #iframeView {
-            display: none; /* 預設隱藏，待切換時開啟 */
+            display: none;
             width: 100%;
             height: 100vh;
             flex-direction: column;
             align-items: center;
-            padding: 0; /* 移除外部留白 */
+            padding: 0;
             opacity: 0;
             transition: opacity 0.4s ease;
         }
 
-        /* iframe 頂部導航列 - 滿版黑色頂欄設計 */
         .iframe-header {
             width: 100%;
-            height: 55px; /* 固定高度便於分配比例 */
+            height: 55px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 0 20px;
-            background-color: #222222; /* 頂欄背景色與主體區隔 */
+            background-color: #222222;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* 目前載入的工具名稱 */
         .current-title {
             font-size: 16px;
             font-weight: bold;
@@ -175,7 +262,6 @@
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
 
-        /* 返回首頁按鈕：半透明玻璃質感 */
         .back-btn {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
@@ -200,14 +286,13 @@
             color: #ffd700;
         }
 
-        /* iframe 外框包裝器 - 左右與底部完全填滿無留白 */
         .iframe-wrapper {
             width: 100%;
-            flex: 1; /* 自動填滿剩餘的所有高度空間 */
+            flex: 1;
             background-color: #ffffff;
-            border-radius: 0; /* 移除圓角，使其無縫貼合螢幕邊緣 */
-            border: none; /* 移除外邊框 */
-            box-shadow: none; /* 滿版無須陰影 */
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
             overflow: hidden;
         }
 
@@ -218,41 +303,35 @@
             background-color: #ffffff;
         }
 
-        /* 行動裝置或短螢幕縮放優化 */
         @media (max-height: 740px) {
-            .card-container {
-                max-width: 330px;
-            }
-            .title-box {
-                padding: 10px 20px;
-            }
-            .title-box h1 {
-                font-size: 19px;
-            }
-            .button-group {
-                gap: 9px;
-            }
-            .menu-btn {
-                padding: 11px 15px;
-                font-size: 13.5px;
-            }
-            .menu-btn span {
-                font-size: 9px;
-            }
+            .card-container { max-width: 330px; }
+            .title-box { padding: 10px 20px; }
+            .title-box h1 { font-size: 19px; }
+            .button-group { gap: 9px; }
+            .menu-btn { padding: 11px 15px; font-size: 13.5px; }
+            .menu-btn span { font-size: 9px; }
         }
     </style>
 </head>
 <body>
 
+    <div id="lockView">
+        <div class="lock-box" id="lockBox">
+            <h2>🔒 Corn 工具庫</h2>
+            p>請輸入操作密碼以繼續使用</p>
+            <input type="password" id="passInput" class="password-input" placeholder="請輸入密碼" onkeypress="handleKeyPress(event)">
+            <button class="unlock-btn" onclick="checkPassword()">解鎖進入</button>
+            <div id="errorMsg">密碼錯誤，請重試！</div>
+        </div>
+    </div>
+
     <div id="homeView">
         <div class="card-container">
             <img class="card-bg" src="1489063.jpg" alt="Corn工具庫背景圖">
-            
             <div class="card-overlay">
                 <div class="title-box">
                     <h1>Corn 工具庫</h1>
                 </div>
-                
                 <div class="button-group">
                     <button class="menu-btn" onclick="openPage('routedraw.html', '路徑生產器')">
                         路徑生產器
@@ -277,35 +356,86 @@
 
     <div id="iframeView">
         <div class="iframe-header">
-            <button class="back-btn" onclick="backToHome()">
-                ← 返回首頁
-            </button>
+            <button class="back-btn" onclick="backToHome()">← 返回首頁</button>
             <div class="current-title" id="pageTitle">網頁名稱</div>
         </div>
-        
         <div class="iframe-wrapper">
             <iframe id="contentFrame" src=""></iframe>
         </div>
     </div>
 
     <script>
+        const lockView = document.getElementById('lockView');
         const homeView = document.getElementById('homeView');
         const iframeView = document.getElementById('iframeView');
         const contentFrame = document.getElementById('contentFrame');
         const pageTitle = document.getElementById('pageTitle');
+        
+        const passInput = document.getElementById('passInput');
+        const errorMsg = document.getElementById('errorMsg');
+        const lockBox = document.getElementById('lockBox');
+
+        // 設定您的預設密碼
+        const CORRECT_PASS = "小小花農";
+
+        // 每次打開網頁時，檢查瀏覽器是否已儲存解鎖狀態
+        window.onload = function() {
+            if (sessionStorage.getItem("isUnlocked") === "true") {
+                showHomeDirectly();
+            } else {
+                passInput.focus(); // 若未解鎖，自動將游標聚焦到密碼輸入框
+            }
+        };
+
+        // 支援在密碼框直接按 Enter 鍵解鎖
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                checkPassword();
+            }
+        }
+
+        // 檢查密碼正確與否
+        function checkPassword() {
+            if (passInput.value === CORRECT_PASS) {
+                // 1. 密碼正確，記錄在 session 中 (重啟瀏覽器後失效，保障安全)
+                sessionStorage.setItem("isUnlocked", "true");
+                
+                // 2. 執行過場動畫切換至首頁
+                lockView.style.opacity = '0';
+                setTimeout(() => {
+                    lockView.style.display = 'none';
+                    homeView.style.display = 'flex';
+                    homeView.offsetHeight; 
+                    homeView.style.opacity = '1';
+                }, 400);
+            } else {
+                // 密碼錯誤：顯示錯誤訊息並晃動視窗
+                errorMsg.style.opacity = '1';
+                lockBox.classList.remove('shake');
+                void lockBox.offsetWidth; // 觸發重繪以重複播放動畫
+                lockBox.classList.add('shake');
+                
+                passInput.value = '';
+                passInput.focus();
+            }
+        }
+
+        // 已登入狀態下直接跳過密碼鎖顯示首頁
+        function showHomeDirectly() {
+            lockView.style.display = 'none';
+            homeView.style.display = 'flex';
+            homeView.style.opacity = '1';
+        }
 
         // 切換分頁
         function openPage(url, title) {
-            // 1. 寫入網址與標題
             contentFrame.src = url;
             pageTitle.textContent = title;
             
-            // 2. 切換動畫：淡出首頁，淡入 iframe 頁面
             homeView.style.opacity = '0';
             setTimeout(() => {
                 homeView.style.display = 'none';
                 iframeView.style.display = 'flex';
-                // 強制重繪確保 CSS transition 觸發
                 iframeView.offsetHeight; 
                 iframeView.style.opacity = '1';
             }, 400);
@@ -316,10 +446,9 @@
             iframeView.style.opacity = '0';
             setTimeout(() => {
                 iframeView.style.display = 'none';
-                contentFrame.src = 'about:blank'; // 清空 iframe，節省瀏覽器效能
+                contentFrame.src = 'about:blank';
                 
                 homeView.style.display = 'flex';
-                // 強制重繪
                 homeView.offsetHeight;
                 homeView.style.opacity = '1';
             }, 400);
