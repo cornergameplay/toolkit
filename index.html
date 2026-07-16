@@ -143,35 +143,36 @@
             transform: translateY(-1px);
         }
 
-        /* iframe 內嵌視圖 (Iframe View) */
+        /* iframe 內嵌視圖 (Iframe View) - 調整為滿版無邊框設計 */
         #iframeView {
             display: none; /* 預設隱藏，待切換時開啟 */
             width: 100%;
             height: 100vh;
             flex-direction: column;
             align-items: center;
-            padding: 15px;
+            padding: 0; /* 移除外部留白 */
             opacity: 0;
             transition: opacity 0.4s ease;
         }
 
-        /* iframe 頂部導航列 */
+        /* iframe 頂部導航列 - 滿版黑色頂欄設計 */
         .iframe-header {
             width: 100%;
-            max-width: 1200px;
+            height: 55px; /* 固定高度便於分配比例 */
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            padding: 0 8px;
+            padding: 0 20px;
+            background-color: #222222; /* 頂欄背景色與主體區隔 */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         /* 目前載入的工具名稱 */
         .current-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #ffd700;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
 
         /* 返回首頁按鈕：半透明玻璃質感 */
@@ -180,10 +181,10 @@
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 8px 18px;
+            padding: 6px 14px;
             border-radius: 30px;
             color: #ffffff;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -199,16 +200,15 @@
             color: #ffd700;
         }
 
-        /* iframe 外框包裝器 */
+        /* iframe 外框包裝器 - 左右與底部完全填滿無留白 */
         .iframe-wrapper {
             width: 100%;
-            max-width: 1200px;
-            height: calc(100vh - 90px); /* 扣掉 header 空間 */
+            flex: 1; /* 自動填滿剩餘的所有高度空間 */
             background-color: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            border-radius: 0; /* 移除圓角，使其無縫貼合螢幕邊緣 */
+            border: none; /* 移除外邊框 */
+            box-shadow: none; /* 滿版無須陰影 */
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .iframe-wrapper iframe {
@@ -246,7 +246,7 @@
 
     <div id="homeView">
         <div class="card-container">
-            <img class="card-bg" src="1489065.jpg" alt="Corn工具庫背景圖">
+            <img class="card-bg" src="1489063.jpg" alt="Corn工具庫背景圖">
             
             <div class="card-overlay">
                 <div class="title-box">
