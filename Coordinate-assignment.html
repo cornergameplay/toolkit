@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>終極微調版 - 座標分配系統 (含排除點位與拖曳修復)</title>
+    <title>終極微調版 - 座標分配系統 (含排序與 .wpt 下載)</title>
+    <!-- 引入 Leaflet 地圖套件 CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; background-color: #f4f7f9; margin: 0; padding: 20px; color: #333; }
@@ -12,13 +13,12 @@
         h1 { color: #2c3e50; margin-top: 0; font-size: 1.8rem; }
         h2 { font-size: 1.2rem; color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-top: 0; }
         
-        /* 拖曳區塊樣式 - 修復閃爍與失效問題 */
+        /* 拖曳區塊樣式 - 徹底防護閃爍與失效 */
         .drop-zone {
             border: 2px dashed #bdc3c7; border-radius: 10px; padding: 40px 20px;
             text-align: center; background-color: #f8f9fa; cursor: pointer; transition: all 0.3s ease;
             position: relative;
         }
-        /* 確保拖曳時，內部的文字不會干擾滑鼠事件 */
         .drop-zone * { pointer-events: none; }
         .drop-zone.dragover { border-color: #3498db; background-color: #ebf5fb; transform: scale(1.02); }
         .drop-zone p { margin: 0; font-size: 16px; color: #7f8c8d; }
@@ -33,23 +33,32 @@
         button:hover { background: #2980b9; }
         button.action-btn { background: #e67e22; }
         button.action-btn:hover { background: #d35400; }
+        
+        /* 卡片按鈕樣式 */
         button.copy-btn { background: #2ecc71; margin-top: 10px; padding: 8px; font-size: 14px; font-weight: normal; }
         button.copy-btn:hover { background: #27ae60; }
+        button.dl-btn { background: #9b59b6; margin-top: 10px; padding: 8px; font-size: 14px; font-weight: normal; }
+        button.dl-btn:hover { background: #8e44ad; }
+        
+        /* 排序小按鈕 */
+        button.sort-btn {
+            background: #f1f2f6; color: #57606f; border: 1px solid #ced6e0;
+            padding: 4px 8px; border-radius: 4px; font-size: 13px; width: auto;
+            cursor: pointer; transition: 0.2s; font-weight: normal;
+        }
+        button.sort-btn:hover:not([disabled]) { background: #dfe4ea; color: #2f3542; }
+        button.sort-btn[disabled] { opacity: 0.3; cursor: not-allowed; }
 
         /* 地圖與文字區塊 */
         #map { height: 550px; width: 100%; border-radius: 8px; border: 1px solid #ddd; margin-top: 15px; z-index: 1; }
-        
-        /* Popup 內的選單樣式 */
         .popup-select { width: 100%; padding: 6px; margin-top: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: inherit; font-size: 14px; pointer-events: auto; }
 
         /* 結果卡片 */
-        .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 20px; }
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 15px; margin-top: 20px; }
         .cluster-card { background: #fff; border-top: 6px solid; padding: 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .cluster-card h3 { margin: 0 0 10px 0; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
         .cluster-card textarea { width: 100%; height: 120px; font-family: monospace; font-size: 13px; padding: 8px; border: 1px solid #eee; resize: none; border-radius: 4px; box-sizing: border-box; background: #f9f9f9; }
         .badge { background: #eee; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; color: #333; }
         
-        /* 排除區塊專用色 */
         .card-gray { border-top-color: #bdc3c7 !important; }
         .card-gray h3 { color: #7f8c8d !important; }
     </style>
@@ -57,12 +66,13 @@
 <body>
 
 <div class="container">
-    <h1>🌍 座標分配與微調系統 (含不使用點位功能)</h1>
+    <h1>🌍 座標智能分配與 GPX (.wpt) 下載系統</h1>
 
+    <!-- 區塊 1 & 2: 讀取檔案與設定 -->
     <div class="card">
         <div class="row">
             <div class="form-group" style="flex: 2;">
-                <h2>1. 載入 CSV 檔案</h2>
+                <h2>1. 載入 CSV / TXT 檔案</h2>
                 <div class="drop-zone" id="dropZone">
                     <p style="font-size: 24px; margin-bottom: 10px;">📂</p>
                     <p>將 CSV 或 TXT 檔案拖曳至此，或 <span>點擊選擇檔案</span></p>
@@ -88,14 +98,17 @@
         </div>
     </div>
 
+    <!-- 區塊 3: 地圖預覽 -->
     <div class="card" style="padding-bottom: 10px;">
         <h2>3. 地圖預覽與微調 <span style="font-size: 14px; color: #7f8c8d; font-weight: normal;">(點擊圓點可更改區域，或設為「不使用」變為灰色)</span></h2>
         <div id="map"></div>
     </div>
 
+    <!-- 區塊 4: 結果清單與下載 -->
     <div id="resultArea" class="results-grid"></div>
 </div>
 
+<!-- 引入 Leaflet 地圖套件 JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     let allPoints = []; 
@@ -103,18 +116,17 @@
     
     // 主題顏色與 Unicode 圓點符號
     const clusterThemes = [
-        { color: '#e74c3c', icon: '🔴' }, // 紅
-        { color: '#3498db', icon: '🔵' }, // 藍
-        { color: '#2ecc71', icon: '🟢' }, // 綠
-        { color: '#f1c40f', icon: '🟡' }, // 黃
-        { color: '#9b59b6', icon: '🟣' }, // 紫
-        { color: '#e67e22', icon: '🟠' }, // 橘
-        { color: '#34495e', icon: '⚫' }, // 黑
-        { color: '#d35400', icon: '🟤' }, // 棕
-        { color: '#1abc9c', icon: '🔷' }, // 藍綠
-        { color: '#e84393', icon: '🌸' }  // 粉
+        { color: '#e74c3c', icon: '🔴' },
+        { color: '#3498db', icon: '🔵' },
+        { color: '#2ecc71', icon: '🟢' },
+        { color: '#f1c40f', icon: '🟡' },
+        { color: '#9b59b6', icon: '🟣' },
+        { color: '#e67e22', icon: '🟠' },
+        { color: '#34495e', icon: '⚫' },
+        { color: '#d35400', icon: '🟤' },
+        { color: '#1abc9c', icon: '🔷' },
+        { color: '#e84393', icon: '🌸' }
     ];
-    // 不使用的灰色設定
     const unusedTheme = { color: '#bdc3c7', icon: '⚪' };
 
     // 初始化地圖
@@ -124,69 +136,43 @@
         attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // ==========================================
-    // 1. 拖曳與檔案處理 (徹底防護版)
-    // ==========================================
+    // --- 1. 拖曳與檔案處理 ---
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
-
     dropZone.addEventListener('click', () => fileInput.click());
 
-    // 阻擋瀏覽器全域的拖曳預設行為，防止不小心打開檔案
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         document.body.addEventListener(eventName, preventDefaults, false);
         dropZone.addEventListener(eventName, preventDefaults, false);
     });
 
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    // 拖曳視覺回饋
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
-    });
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
-    });
-
-    // 放下檔案處理
+    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+    ['dragenter', 'dragover'].forEach(eventName => dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false));
+    ['dragleave', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false));
+    
     dropZone.addEventListener('drop', (e) => {
-        let dt = e.dataTransfer;
-        let files = dt.files;
-        if (files.length > 0) handleFile(files[0]);
+        if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
     });
-
-    // 傳統點擊上傳
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) handleFile(e.target.files[0]);
     });
 
     function handleFile(file) {
-        if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
-            return alert('請上傳 CSV 或 TXT 檔案！');
-        }
-
+        if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) return alert('請上傳 CSV 或 TXT 檔案！');
         const reader = new FileReader();
         reader.onload = function(e) {
             const lines = e.target.result.split(/\r?\n/);
             allPoints = [];
             let pointIdCounter = 0;
-            
             lines.forEach(line => {
                 const p = parseCoords(line);
                 if (p) allPoints.push({ id: pointIdCounter++, lat: p.lat, lng: p.lng, clusterId: -2 }); 
-                // 預設 -2 代表尚未分配
             });
-
             document.getElementById('totalPoints').innerText = allPoints.length;
             if (allPoints.length > 0) {
                 dropZone.querySelector('p:nth-child(2)').innerHTML = `已成功載入：<span style="color:#27ae60;">${file.name}</span>`;
                 focusMap();
-            } else {
-                alert("未找到有效的座標格式！");
-            }
+            } else { alert("未找到有效的座標格式！"); }
         };
         reader.readAsText(file);
     }
@@ -205,27 +191,19 @@
         return null;
     }
 
-    // ==========================================
-    // 2. 受限 K-Means 演算法 (自動分配)
-    // ==========================================
+    // --- 2. 受限 K-Means 演算法 ---
     function startConstrainedKMeans() {
-        // 在執行前，把「不使用 (clusterId: -1)」的點位排除計算
         let activePoints = allPoints.filter(p => p.clusterId !== -1);
-        
-        if (activePoints.length === 0) return alert("沒有需要分配的點位！(請確認是否載入檔案，或點位未全數設為不使用)");
+        if (activePoints.length === 0) return alert("沒有需要分配的點位！");
 
         const minSize = parseInt(document.getElementById('minSize').value);
         const maxSize = parseInt(document.getElementById('maxSize').value);
         const N = activePoints.length;
-
         if (minSize > maxSize) return alert("錯誤：下限不能大於上限！");
 
         const minGroups = Math.ceil(N / maxSize);
         const maxGroups = Math.floor(N / minSize);
-
-        if (minGroups > maxGroups) {
-            return alert(`數量衝突：有效總共 ${N} 點無法在每組 ${minSize}~${maxSize} 的限制下完美分配。請調整上下限範圍！`);
-        }
+        if (minGroups > maxGroups) return alert(`數量衝突：有效總共 ${N} 點無法在每組 ${minSize}~${maxSize} 的限制下完美分配。請調整上下限範圍！`);
 
         totalClusters = minGroups; 
         let capacities = Array(totalClusters).fill(Math.floor(N / totalClusters));
@@ -247,7 +225,6 @@
             }
 
             distances.sort((a, b) => a.dist - b.dist);
-
             distances.forEach(item => {
                 if (!assigned[item.pIdx] && currentCounts[item.cIdx] < capacities[item.cIdx]) {
                     assigned[item.pIdx] = true;
@@ -256,7 +233,6 @@
                 }
             });
 
-            // 更新中心點
             let sumsLat = Array(totalClusters).fill(0), sumsLng = Array(totalClusters).fill(0), counts = Array(totalClusters).fill(0);
             activePoints.forEach(p => {
                 sumsLat[p.clusterId] += p.lat;
@@ -267,63 +243,108 @@
                 if(counts[c] > 0) centroids[c] = { lat: sumsLat[c]/counts[c], lng: sumsLng[c]/counts[c] };
             }
         }
-
         updateViewAndLists();
         focusMap();
     }
 
-    // ==========================================
-    // 3. 手動微調 (Popup 觸發)
-    // ==========================================
+    // --- 3. 手動微調與排序邏輯 ---
     window.changeCluster = function(pointId, newClusterId) {
         newClusterId = parseInt(newClusterId);
         let point = allPoints.find(p => p.id === pointId);
         if (point && point.clusterId !== newClusterId) {
-            point.clusterId = newClusterId; // 如果是 -1 就是設為不使用
+            point.clusterId = newClusterId;
             updateViewAndLists(); 
         }
     };
 
-    // ==========================================
-    // 4. 畫面與清單同步渲染
-    // ==========================================
+    // 區域往上排序 (與前一個區域對調 ID)
+    window.moveClusterUp = function(idx) {
+        if (idx <= 0) return;
+        swapCluster(idx, idx - 1);
+    };
+
+    // 區域往下排序 (與後一個區域對調 ID)
+    window.moveClusterDown = function(idx) {
+        if (idx >= totalClusters - 1) return;
+        swapCluster(idx, idx + 1);
+    };
+
+    function swapCluster(idxA, idxB) {
+        allPoints.forEach(p => {
+            if (p.clusterId === idxA) p.clusterId = -99;
+            else if (p.clusterId === idxB) p.clusterId = idxA;
+        });
+        allPoints.forEach(p => {
+            if (p.clusterId === -99) p.clusterId = idxB;
+        });
+        updateViewAndLists();
+    }
+
+    // --- 4. GPX (.wpt) 檔案下載功能 ---
+    window.downloadGPX = function(clusterId) {
+        let points = allPoints.filter(p => p.clusterId === clusterId);
+        if (points.length === 0) return alert("該區域沒有點位可下載！");
+        
+        // 構建標準 GPX Waypoint XML 結構
+        let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+        gpxContent += `<gpx version="1.1" creator="MapMaster Coordinate System" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+        
+        points.forEach((p, idx) => {
+            let ptName = `P_${String(idx + 1).padStart(3, '0')}`;
+            gpxContent += `  <wpt lat="${p.lat}" lon="${p.lng}">\n`;
+            gpxContent += `    <name>${ptName}</name>\n`;
+            gpxContent += `    <desc>Lat: ${p.lat}, Lng: ${p.lng}</desc>\n`;
+            gpxContent += `    <sym>Waypoint</sym>\n`;
+            gpxContent += `  </wpt>\n`;
+        });
+        gpxContent += `</gpx>`;
+        
+        const blob = new Blob([gpxContent], { type: 'application/gpx+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // 自訂下載檔名 (.wpt 結尾)
+        let fileName = (clusterId === -1) ? `排除不使用_點位.wpt` : `區域_${clusterId + 1}_座標點位.wpt`;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    // --- 5. 畫面與清單渲染 ---
     function updateViewAndLists() {
         markerLayers.clearLayers();
         const resultArea = document.getElementById('resultArea');
         resultArea.innerHTML = '';
 
-        // 分離有效點位與不使用點位
         let clusteredPoints = Array.from({ length: totalClusters }, () => []);
         let unusedPoints = [];
 
         allPoints.forEach(p => {
-            if(p.clusterId >= 0 && p.clusterId < totalClusters) {
-                clusteredPoints[p.clusterId].push(p);
-            } else if (p.clusterId === -1) {
-                unusedPoints.push(p);
-            }
+            if(p.clusterId >= 0 && p.clusterId < totalClusters) clusteredPoints[p.clusterId].push(p);
+            else if (p.clusterId === -1) unusedPoints.push(p);
         });
 
-        // 渲染正規區域點位
         clusteredPoints.forEach((points, idx) => {
             const theme = clusterThemes[idx % clusterThemes.length];
             renderGroup(points, idx, theme, resultArea);
         });
 
-        // 渲染「不使用 (灰色)」點位
         if (unusedPoints.length > 0) {
             renderGroup(unusedPoints, -1, unusedTheme, resultArea, true);
         }
     }
 
     function renderGroup(points, idx, theme, container, isUnused = false) {
-        if(points.length === 0 && isUnused) return; // 沒有不使用的點就略過
+        if(points.length === 0 && isUnused) return;
 
         const latlngList = points.map(p => `${p.lat},${p.lng}`).join('\n');
         const titleText = isUnused ? "不使用點位 (已排除)" : `區域 ${idx + 1}`;
         const cardClass = isUnused ? "cluster-card card-gray" : "cluster-card";
 
-        // 畫在地圖上
+        // 繪製地圖標記
         points.forEach(p => {
             let popupHtml = `
                 <div style="font-size: 13px;">
@@ -333,44 +354,52 @@
                     <b>手動強制移至：</b><br>
                     <select class="popup-select" onchange="changeCluster(${p.id}, this.value)">
             `;
-            
-            // 下拉選項 (正常區域)
             for(let i = 0; i < totalClusters; i++) {
                 let optTheme = clusterThemes[i % clusterThemes.length];
                 let selected = (i === p.clusterId) ? "selected" : "";
                 popupHtml += `<option value="${i}" ${selected}>${optTheme.icon} 區域 ${i + 1}</option>`;
             }
-            // 下拉選項 (不使用點位)
             let unusedSelected = (p.clusterId === -1) ? "selected" : "";
             popupHtml += `<option value="-1" ${unusedSelected}>⚪ 不使用 (設為灰色)</option>`;
             popupHtml += `</select></div>`;
 
             L.circleMarker([p.lat, p.lng], {
-                radius: 8,
-                fillColor: theme.color,
-                color: "#fff",
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.95
+                radius: 8, fillColor: theme.color, color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.95
             }).bindPopup(popupHtml).addTo(markerLayers);
         });
+
+        // 排序按鈕 HTML
+        let sortButtonsHtml = '';
+        if (!isUnused) {
+            sortButtonsHtml = `
+                <div style="display:flex; gap:4px;">
+                    <button class="sort-btn" onclick="moveClusterUp(${idx})" title="往上移" ${idx === 0 ? 'disabled' : ''}>⬆️</button>
+                    <button class="sort-btn" onclick="moveClusterDown(${idx})" title="往下移" ${idx === totalClusters - 1 ? 'disabled' : ''}>⬇️</button>
+                </div>
+            `;
+        }
 
         // 生成結果卡片
         const card = document.createElement('div');
         card.className = cardClass;
         card.style.borderColor = theme.color;
         card.innerHTML = `
-            <h3 style="color: ${theme.color}">${theme.icon} ${titleText} <span class="badge">${points.length} 點</span></h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3 style="color: ${theme.color}; margin:0; font-size:16px;">${theme.icon} ${titleText} <span class="badge">${points.length} 點</span></h3>
+                ${sortButtonsHtml}
+            </div>
             <textarea id="txt-${idx}" readonly>${latlngList}</textarea>
-            <button class="copy-btn" onclick="copyText('txt-${idx}')">📋 複製此區清單</button>
+            <div style="display:flex; gap:10px;">
+                <button class="copy-btn" onclick="copyText('txt-${idx}')" style="flex:1;">📋 複製清單</button>
+                <button class="dl-btn" onclick="downloadGPX(${idx})" style="flex:1;">📥 下載 .wpt</button>
+            </div>
         `;
         container.appendChild(card);
     }
 
     function focusMap() {
-        let pointsToFocus = allPoints.filter(p => p.clusterId !== -2); // 排除未初次分配的
-        if(pointsToFocus.length === 0) pointsToFocus = allPoints; // 剛載入時
-        
+        let pointsToFocus = allPoints.filter(p => p.clusterId !== -2);
+        if(pointsToFocus.length === 0) pointsToFocus = allPoints;
         if(pointsToFocus.length > 0) {
             const bounds = L.latLngBounds(pointsToFocus.map(p => [p.lat, p.lng]));
             map.fitBounds(bounds.pad(0.1));
