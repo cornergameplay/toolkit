@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>皮克敏蘑菇計算機 - 24H 模式</title>
+    <style>
+        :root {
+            --pikmin-green: #76c760;
+            --pikmin-red: #ff6b6b;
+            --pikmin-blue: #4dabf7;
+            --pikmin-gold: #fcc419;
+            --bg-color: #f4fbf2;
+        }
+
+        body {
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+            border: 4px solid var(--pikmin-green);
+            box-sizing: border-box;
+        }
+
+        /* 模式切換 */
+        .mode-switcher {
+            display: flex;
+            background: #eee;
+            border-radius: 50px;
+            margin-bottom: 1.5rem;
+            padding: 5px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+            color: #777;
+        }
+
+        .mode-btn.active {
+            background: var(--pikmin-green);
+            color: white;
+        }
+
+        h2 { text-align: center; color: #2d5a27; margin-top: 0; font-size: 1.4rem; }
+        .input-group { margin-bottom: 1.2rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: #555; font-size: 0.9rem; }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            outline: none;
+            background: #fafafa;
+        }
+        input:focus { border-color: var(--pikmin-green); background: #fff; }
+
+        .result-panel {
+            margin-top: 1.5rem;
+            padding: 1.2rem;
+            background: #f9f9f9;
+            border-radius: 15px;
+            border-left: 5px solid var(--pikmin-green);
+        }
+
+        .highlight-res {
+            color: var(--pikmin-red);
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin: 5px 0;
+        }
+
+        .finish-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff9db;
+            border-radius: 10px;
+            border: 1px solid var(--pikmin-gold);
+            text-align: center;
+        }
+
+        .current-time-tag {
+            font-size: 0.75rem;
+            color: #888;
+            text-align: right;
+            margin-bottom: 5px;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--pikmin-blue);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 1rem;
+            box-shadow: 0 4px 0 #368ecc;
+        }
+        .btn-action:active { transform: translateY(2px); box-shadow: 0 2px 0 #368ecc; }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🍄 蘑菇戰鬥預測 (24H)</h2>
+
+    <div class="mode-switcher">
+        <div id="mode-forward" class="mode-btn active" onclick="switchMode('forward')">預測完成時間</div>
+        <div id="mode-backward" class="mode-btn" onclick="switchMode('backward')">計算所需戰力</div>
+    </div>
+
+    <div class="input-group">
+        <label>蘑菇總血量</label>
+        <input type="number" id="hp" placeholder="輸入血量..." oninput="doCalc()">
+    </div>
+
+    <div id="group-forward" class="input-group">
+        <label>目前總戰力</label>
+        <input type="number" id="power" placeholder="輸入目前隊伍戰力..." oninput="doCalc()">
+    </div>
+
+    <div id="group-backward" class="input-group hidden">
+        <div class="current-time-tag">現在時間: <span id="now-display">--:--</span></div>
+        <label>希望消滅的時間點 (24小時制)</label>
+        <input type="datetime-local" id="target-time" oninput="doCalc()">
+    </div>
+
+    <div id="result-panel" class="result-panel hidden">
+        <div id="res-label" style="font-size: 0.9rem; color: #666;">計算結果：</div>
+        <div id="res-value" class="highlight-res">---</div>
+        
+        <div id="finish-box" class="finish-info hidden">
+            <div style="font-size: 0.8rem; color: #888;">✨ 預計完成日期 (24H) ✨</div>
+            <div id="finish-date" style="font-size: 0.9rem; font-weight: bold;"></div>
+        </div>
+    </div>
+
+    <button id="btn-refresh" class="btn-action hidden" onclick="refreshNow()">🔄 更新現在時間並計算</button>
+</div>
+
+<script>
+    let currentMode = 'forward';
+
+    // 更新「現在時間」顯示
+    function updateNowDisplay() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' });
+        const nowTag = document.getElementById('now-display');
+        if(nowTag) nowTag.innerText = timeStr;
+    }
+
+    // 初始化
+    window.onload = () => {
+        const now = new Date();
+        now.setHours(now.getHours() + 1); // 預設目標為 1 小時後
+        const offset = now.getTimezoneOffset() * 60000;
+        const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
+        document.getElementById('target-time').value = localISOTime;
+        updateNowDisplay();
+        setInterval(updateNowDisplay, 10000); // 每 10 秒更新一次背景時間
+    };
+
+    function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById('mode-forward').classList.toggle('active', mode === 'forward');
+        document.getElementById('mode-backward').classList.toggle('active', mode === 'backward');
+        document.getElementById('group-forward').classList.toggle('hidden', mode !== 'forward');
+        document.getElementById('group-backward').classList.toggle('hidden', mode !== 'backward');
+        document.getElementById('btn-refresh').classList.toggle('hidden', mode !== 'backward');
+        document.getElementById('result-panel').classList.add('hidden');
+        doCalc();
+    }
+
+    function refreshNow() {
+        updateNowDisplay();
+        doCalc();
+    }
+
+    function doCalc() {
+        const hp = parseFloat(document.getElementById('hp').value);
+        const resPanel = document.getElementById('result-panel');
+        const resValue = document.getElementById('res-value');
+        const resLabel = document.getElementById('res-label');
+        const finishBox = document.getElementById('finish-box');
+
+        if (!hp || hp <= 0) {
+            resPanel.classList.add('hidden');
+            return;
+        }
+
+        resPanel.classList.remove('hidden');
+
+        if (currentMode === 'forward') {
+            const power = parseFloat(document.getElementById('power').value);
+            if (!power || power <= 0) {
+                resValue.innerText = "等待戰力輸入...";
+                finishBox.classList.add('hidden');
+                return;
+            }
+
+            const totalSec = (hp / power) * 100;
+            resLabel.innerText = "預計戰鬥時長：";
+            resValue.innerText = formatDuration(totalSec);
+
+            const finishDate = new Date(Date.now() + (totalSec * 1000));
+            // 使用 24 小時制格式化輸出
+            document.getElementById('finish-date').innerText = finishDate.toLocaleString('zh-TW', {
+                year: 'numeric', month: 'long', day: 'numeric', 
+                weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false 
+            });
+            finishBox.classList.remove('hidden');
+
+        } else {
+            const targetVal = document.getElementById('target-time').value;
+            if (!targetVal) {
+                resValue.innerText = "請選擇時間點";
+                return;
+            }
+
+            const targetTime = new Date(targetVal);
+            const now = new Date();
+            const diffSec = (targetTime - now) / 1000;
+
+            if (diffSec <= 0) {
+                resValue.innerText = "時間必須在未來！";
+                finishBox.classList.add('hidden');
+                return;
+            }
+
+            const reqPower = (hp * 100) / diffSec;
+            resLabel.innerText = "所需總戰力至少：";
+            resValue.innerText = Math.ceil(reqPower).toLocaleString() + " 戰力";
+            finishBox.classList.add('hidden');
+        }
+    }
+
+    function formatDuration(seconds) {
+        let s = Math.round(seconds);
+        let d = Math.floor(s / 86400);
+        let h = Math.floor((s % 86400) / 3600);
+        let m = Math.floor((s % 3600) / 60);
+        let sec = s % 60;
+        let res = "";
+        if (d > 0) res += d + "天 ";
+        if (d > 0 || h > 0) res += h + "時 ";
+        if (d > 0 || h > 0 || m > 0) res += m + "分 ";
+        res += sec + "秒";
+        return res;
+    }
+</script>
+
+</body>
+</html>
