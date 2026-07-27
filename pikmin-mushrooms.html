@@ -65,7 +65,7 @@
 
         /* 主體容器 (預設隱藏，登入後顯示) */
         .container {
-            max-width: 1150px;
+            max-width: 1200px;
             margin: 0 auto;
             display: none; 
             position: relative;
@@ -160,7 +160,7 @@
             font-weight: normal;
         }
 
-        /* 橫向單列座標項目 */
+        /* 橫向單列座標項目 (雙時間欄位，共6格 + 按鈕) */
         .coord-list {
             display: flex;
             flex-direction: column;
@@ -168,7 +168,7 @@
         }
         .coord-row {
             display: grid;
-            grid-template-columns: 1.6fr 0.9fr 1.5fr 1.2fr auto;
+            grid-template-columns: 1.5fr 1.2fr 1.3fr 1.2fr 1fr auto;
             align-items: center;
             background: var(--card-bg);
             padding: 8px 12px;
@@ -182,8 +182,11 @@
             border-left-color: #9c27b0;
             background-color: #fcf8ff;
         }
-        @media (max-width: 850px) {
-            .coord-row { grid-template-columns: 1fr; gap: 8px; padding: 12px; }
+        .edit-span-2 { grid-column: span 2; }
+
+        @media (max-width: 950px) {
+            .coord-row { grid-template-columns: 1fr; gap: 6px; padding: 12px; }
+            .edit-span-2 { grid-column: span 1; }
             .smart-divider::before, .smart-divider::after { content: '===='; }
             .coord-input-group { flex-direction: column; width: 100%; }
             .btn-logout { position: static; margin-left: auto; display: block; margin-bottom: 10px;}
@@ -191,11 +194,13 @@
         }
         
         .col-name { font-weight: bold; color: #1b5e20; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-        .col-diff { font-size: 0.85em; color: var(--text-sub); }
+        .col-elapsed { font-size: 0.85em; color: #8e24aa; font-weight: bold; }
+        .col-remaining { font-size: 0.85em; color: #00897b; font-weight: bold; }
         .col-coord { font-family: monospace; font-size: 0.95em; color: #333; background: #f8f9fa; padding: 3px 6px; border-radius: 4px; display: inline-block; }
         .col-note { color: #666; font-size: 0.85em; }
         .col-btns { display: flex; gap: 5px; justify-content: flex-end; flex-wrap: wrap; }
 
+        /* 標籤三態 (明天 / 今天 / 昨天) */
         .tag {
             display: inline-block;
             padding: 2px 6px;
@@ -203,8 +208,9 @@
             font-size: 0.75em;
             font-weight: bold;
         }
-        .tag-next { background: #e1bee7; color: #6a1b9a; }
-        .tag-today { background: #e0f2f1; color: #00695c; }
+        .tag-next { background: #e1bee7; color: #6a1b9a; }  /* 紫色：明天 */
+        .tag-today { background: #e0f2f1; color: #00695c; } /* 藍綠：今天 */
+        .tag-prev { background: #eceff1; color: #455a64; }  /* 鐵灰：昨天 */
 
         button.btn-sm { padding: 5px 9px; font-size: 0.85em; }
         button.btn-copy { background: #2196f3; color: white; }
@@ -268,11 +274,9 @@
         <div class="form-row">
             <div class="coord-input-group">
                 <input type="text" id="coord-input" placeholder="📍 貼上座標 (例：35.6895, 139.6917)" oninput="handleCoordInput(this.value)">
-                <!-- 修改為僅顯示圖示🔍，移至上方會有title文字提示 -->
                 <button type="button" class="btn-detect" id="btn-auto-detect" onclick="triggerAutoDetect()" title="自動重新判斷地點名稱與時區">🔍</button>
             </div>
             
-            <!-- 修改 placeholder 僅顯示 🍄 地點名稱 -->
             <input type="text" id="name" placeholder="🍄 地點名稱" style="flex: 1.5; min-width: 160px;">
             
             <select id="tz" style="flex: 1; min-width: 110px;">
@@ -313,7 +317,7 @@
 
 <script>
 // ==========================================
-// ⚙️ 貼上你 Google Apps Script 部署的 Web App URL
+// ⚙️ 綁定你的 Google Apps Script 雲端 API 網址
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx4o386VsQGe-lUgxpXIdJEBB8QX6xUMd9TH1sU8I8BXc0FgZ4ECzWXHCTrm_7HAiyE/exec"; 
 // ==========================================
 
@@ -463,15 +467,11 @@ async function fetchLocationAndTimeZone(lat, lng) {
 // 讀取資料
 async function fetchData() {
     document.getElementById('loading').style.display = 'block';
-    if (GAS_API_URL) {
-        try {
-            const res = await fetch(GAS_API_URL);
-            coordinates = await res.json();
-        } catch (e) {
-            alert("雲端連接失敗，自動切換至瀏覽器單機測試模式。");
-            loadLocal();
-        }
-    } else {
+    try {
+        const res = await fetch(GAS_API_URL);
+        coordinates = await res.json();
+    } catch (e) {
+        alert("連線 Google 雲端 API 失敗！請檢查網路，或切換至瀏覽器單機記憶體模式。");
         loadLocal();
     }
     document.getElementById('loading').style.display = 'none';
@@ -488,12 +488,57 @@ function loadLocal() {
     ];
 }
 
-function getDayStatus(targetTz) {
-    const now = new Date();
-    const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const twDayStr = new Date(utcMs + (3600000 * 8)).toISOString().split('T')[0];
-    const targetDayStr = new Date(utcMs + (3600000 * targetTz)).toISOString().split('T')[0];
-    return targetDayStr > twDayStr;
+// ⏱️ 修正後的精準核心運算：絕對不依賴系統時區偏移，用純 UTC 毫秒還原各地真實時鐘
+function getTimeDetails(targetTz) {
+    // 1. 取得絕對準確的 UTC 零時區時間戳記 (毫秒)
+    const nowMs = Date.now();
+    
+    // 2. 取得「台灣當下 (UTC+8)」的實際日期字串作為比對基準
+    const twDate = new Date(nowMs + (8 * 3600000));
+    const twDayStr = twDate.toISOString().split('T')[0];
+    
+    // 3. 取得「目標座標當下 (UTC+targetTz)」的實際日期字串與時間
+    const targetDate = new Date(nowMs + (targetTz * 3600000));
+    const targetDayStr = targetDate.toISOString().split('T')[0];
+    
+    // 4. 標籤判斷：比對當地日期與台灣日期
+    let dayTag = "";
+    let dayClass = "";
+    let isNextDay = false; // 是否比台灣快一天 (用於智慧分割線)
+    
+    if (targetDayStr > twDayStr) {
+        dayTag = "🌙 明天";
+        dayClass = "tag-next";
+        isNextDay = true;
+    } else if (targetDayStr === twDayStr) {
+        dayTag = "☀️ 今天";
+        dayClass = "tag-today";
+        isNextDay = false;
+    } else {
+        dayTag = "🌌 昨天";
+        dayClass = "tag-prev";
+        isNextDay = false;
+    }
+    
+    // 5. 當地時間倒數與流逝計時 (完全依照該座標當地的 00:00 與 24:00)
+    // 透過 UTC+偏移量重建後的 Date 物件，其 getUTCHours()/getUTCMinutes() 就是當地真實時鐘！
+    const localHours = targetDate.getUTCHours();
+    const localMinutes = targetDate.getUTCMinutes();
+    const totalMinsOfDay = (localHours * 60) + localMinutes;
+    
+    // 欄位一：已跨日 X 小時 Y 分 (從當地當日凌晨 00:00 起算已流逝時間)
+    const elapsedHrs = Math.floor(totalMinsOfDay / 60);
+    const elapsedMins = totalMinsOfDay % 60;
+    const elapsedStr = `⌛ 已跨日 ${elapsedHrs} 小時 ${elapsedMins} 分`;
+    
+    // 欄位二：剩餘 X 小時 Y 分跨日 (距離當地今晚 24:00 剩餘時間)
+    let remMins = 1440 - totalMinsOfDay;
+    if (remMins === 1440) remMins = 0;
+    const remHrs = Math.floor(remMins / 60);
+    const remMinsLeft = remMins % 60;
+    const remainingStr = `⏳ 剩餘 ${remHrs} 小時 ${remMinsLeft} 分跨日`;
+    
+    return { isNextDay, dayTag, dayClass, elapsedStr, remainingStr };
 }
 
 function renderList() {
@@ -501,17 +546,26 @@ function renderList() {
     container.innerHTML = '';
 
     let processed = coordinates.map((item, idx) => {
-        const isNextDay = getDayStatus(item.tz);
-        const diffFromTw = item.tz - 8;
-        return { ...item, isNextDay, diffFromTw, originalIndex: idx };
+        const timeDetails = getTimeDetails(item.tz);
+        return { 
+            ...item, 
+            isNextDay: timeDetails.isNextDay,
+            dayTag: timeDetails.dayTag,
+            dayClass: timeDetails.dayClass,
+            elapsedStr: timeDetails.elapsedStr,
+            remainingStr: timeDetails.remainingStr,
+            originalIndex: idx 
+        };
     });
 
-    processed.sort((a, b) => b.diffFromTw - a.diffFromTw);
+    // 依照時區由東向西排序 (如 +14 -> +8 -> -10)
+    processed.sort((a, b) => b.tz - a.tz);
 
     let hasShownDivider = false;
     const nextDayCount = processed.filter(i => i.isNextDay).length;
 
     processed.forEach((item) => {
+        // 在「明天」與「今天/昨天」中間自動安插金色分割條
         if (!item.isNextDay && nextDayCount > 0 && !hasShownDivider) {
             const divider = document.createElement('div');
             divider.className = 'smart-divider';
@@ -526,7 +580,7 @@ function renderList() {
 
         if (editingIndex === item.originalIndex) {
             row.innerHTML = `
-                <div>
+                <div class="edit-span-2">
                     <input type="text" class="edit-input" id="edit-coord-${item.originalIndex}" value="${coordStr}" placeholder="緯度, 經度" style="margin-bottom:4px; font-family:monospace;">
                     <input type="text" class="edit-input" id="edit-name-${item.originalIndex}" value="${item.name}" placeholder="地點名稱">
                 </div>
@@ -552,21 +606,16 @@ function renderList() {
                 </div>
             `;
         } else {
-            let timeStr = item.diffFromTw > 0 ? `快台灣 ${item.diffFromTw} 小時` : 
-                          item.diffFromTw < 0 ? `慢台灣 ${Math.abs(item.diffFromTw)} 小時` : `與台灣同步`;
-            
-            const tagHtml = item.isNextDay 
-                ? `<span class="tag tag-next">🌙 明天</span>` 
-                : `<span class="tag tag-today">☀️ 今天</span>`;
+            const tagHtml = `<span class="tag ${item.dayClass}">${item.dayTag}</span>`;
 
             row.innerHTML = `
                 <div class="col-name">${item.name} ${tagHtml}</div>
-                <div class="col-diff">⏱️ ${timeStr}</div>
+                <div class="col-elapsed">${item.elapsedStr}</div>
+                <div class="col-remaining">${item.remainingStr}</div>
                 <div class="col-coord">${coordStr}</div>
                 <div class="col-note">${item.note ? '💡 ' + item.note : ''}</div>
                 <div class="col-btns">
                     <button class="btn-sm btn-copy" onclick="copyCoord('${coordStr}')">複製</button>
-                    <!-- 修改為僅顯示圖示🔍，移至上方會有title文字提示 -->
                     <button class="btn-sm btn-redetect" onclick="quickReDetect(${item.originalIndex}, '${item.lat}', '${item.lng}')" title="一鍵重新判斷此座標的地點與時區">🔍</button>
                     <button class="btn-sm btn-edit" onclick="startEdit(${item.originalIndex})">修改</button>
                     <button class="btn-sm btn-del" onclick="deleteCoord(${item.originalIndex}, '${item.lat}', '${item.lng}')">刪除</button>
@@ -590,13 +639,8 @@ async function quickReDetect(index, lat, lng) {
     const oldItem = coordinates[index];
     const updatedItem = { ...oldItem, name: result.name, tz: result.tz };
 
-    if (GAS_API_URL) {
-        await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "delete", lat, lng }) });
-        await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "add", ...updatedItem }) });
-    } else {
-        coordinates[index] = updatedItem;
-        localStorage.setItem('pikmin_coords_v3', JSON.stringify(coordinates));
-    }
+    await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "delete", lat, lng }) });
+    await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "add", ...updatedItem }) });
     
     toast.innerText = `✅ 已更新為：${result.name} (UTC${result.tz>=0?'+'+result.tz:result.tz})`;
     setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 2500);
@@ -639,12 +683,7 @@ async function addCoordinate() {
     const btn = document.getElementById('saveBtn');
     btn.disabled = true; btn.innerText = "新增中...";
 
-    if (GAS_API_URL) {
-        await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "add", ...newObj }) });
-    } else {
-        coordinates.push(newObj);
-        localStorage.setItem('pikmin_coords_v3', JSON.stringify(coordinates));
-    }
+    await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "add", ...newObj }) });
 
     document.getElementById('coord-input').value = '';
     document.getElementById('name').value = '';
@@ -657,12 +696,7 @@ async function deleteCoord(index, lat, lng) {
     if (!confirm("確定要刪除這個點位嗎？")) return;
     document.getElementById('loading').style.display = 'block';
 
-    if (GAS_API_URL) {
-        await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "delete", lat, lng }) });
-    } else {
-        coordinates.splice(index, 1);
-        localStorage.setItem('pikmin_coords_v3', JSON.stringify(coordinates));
-    }
+    await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "delete", lat, lng }) });
     await fetchData();
 }
 
@@ -679,13 +713,9 @@ async function saveEdit(oldIndex, oldLat, oldLng) {
     if (!coords || !name) { alert("座標與名稱不能為空！"); return; }
     document.getElementById('loading').style.display = 'block';
 
-    if (GAS_API_URL) {
-        await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "delete", lat: oldLat, lng: oldLng }) });
-        await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "add", name, lat: coords.lat, lng: coords.lng, tz, note }) });
-    } else {
-        coordinates[oldIndex] = { name, lat: coords.lat, lng: coords.lng, tz, note };
-        localStorage.setItem('pikmin_coords_v3', JSON.stringify(coordinates));
-    }
+    await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "delete", lat: oldLat, lng: oldLng }) });
+    await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: "add", name, lat: coords.lat, lng: coords.lng, tz, note }) });
+
     editingIndex = -1;
     await fetchData();
 }
