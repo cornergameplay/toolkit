@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <!-- 防止 iOS/Android 誤觸放大，確保 App 級體驗 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🌱 皮克敏快刷 V5 (密碼防護終極版)</title>
+    <style>
+        :root {
+            --primary: #10B981;
+            --primary-dark: #059669;
+            --bg-dark: #0f172a;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100dvh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* ================= 專業級：全螢幕密碼防護遮罩 ================= */
+        #login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100dvh;
+            background-color: var(--bg-dark);
+            z-index: 999999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        #login-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .login-box {
+            background: #ffffff;
+            padding: 32px 24px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .login-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+        }
+
+        .login-box h2 {
+            color: #1e293b;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .login-box p {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+
+        /* 允許密碼輸入框可以被選取與輸入 */
+        .login-input {
+            -webkit-user-select: auto;
+            user-select: auto;
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 16px; /* 16px 絕對防止 iOS 點擊自動 Zoom-in */
+            margin-bottom: 12px;
+            text-align: center;
+            outline: none;
+            transition: all 0.2s;
+            color: #1e293b;
+            background: #f8fafc;
+        }
+
+        .login-input:focus {
+            border-color: var(--primary);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+        }
+
+        .login-input.error {
+            border-color: #ef4444;
+            background: #fef2f2;
+            animation: shake 0.3s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .btn-login {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-login:active {
+            transform: scale(0.97);
+            background: var(--primary-dark);
+        }
+
+        .error-msg {
+            color: #ef4444;
+            font-size: 0.8rem;
+            margin-top: 10px;
+            min-height: 18px;
+            font-weight: 600;
+            visibility: hidden;
+        }
+
+        .error-msg.show {
+            visibility: visible;
+        }
+
+        /* ================= 頂部工具列 ================= */
+        .top-toolbar {
+            background: #1e293b;
+            color: white;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            height: 48px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .url-selector {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .url-selector span {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+
+        .url-selector select {
+            flex: 1;
+            max-width: 220px;
+            height: 32px;
+            padding: 0 8px;
+            border-radius: 6px;
+            border: 1px solid #475569;
+            background: #334155;
+            color: white;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .btn-external {
+            background: #475569;
+            color: white;
+            text-decoration: none;
+            padding: 0 10px;
+            height: 32px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        /* ================= 100% 滿版信箱區 ================= */
+        .main-container {
+            flex: 1;
+            width: 100%;
+            height: calc(100dvh - 48px);
+            position: relative;
+            background: #ffffff;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .iframe-fallback {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            padding: 24px;
+            color: #64748b;
+            width: 90%;
+            max-width: 400px;
+            z-index: 0;
+        }
+
+        .iframe-fallback h2 {
+            font-size: 1.1rem;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+
+        .iframe-fallback p {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .btn-popup {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        /* ================= 專業級：懸浮快刷島 ================= */
+        .floating-island {
+            position: absolute;
+            top: 56px;
+            right: 12px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            pointer-events: none; 
+        }
+
+        .toggle-capsule {
+            pointer-events: auto;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .toggle-capsule:active {
+            transform: scale(0.95);
+        }
+
+        .toggle-capsule svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+            transition: transform 0.3s ease;
+        }
+
+        .floating-island.open .toggle-capsule {
+            background: #334155;
+            border-radius: 12px 12px 0 0;
+            box-shadow: none;
+            border-bottom: 1px solid #475569;
+        }
+
+        .floating-island.open .toggle-capsule svg {
+            transform: rotate(180deg);
+        }
+
+        .panel-content {
+            pointer-events: auto;
+            background: #ffffff;
+            width: 320px;
+            max-width: calc(100vw - 24px);
+            max-height: calc(100dvh - 120px);
+            overflow-y: auto;
+            border-radius: 12px 0 12px 12px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            padding: 14px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .floating-island.open .panel-content {
+            display: flex;
+            animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-header {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-sub);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .copy-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .label {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+
+        .value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: monospace;
+            letter-spacing: 1px;
+            margin-top: 1px;
+        }
+
+        .btn-copy {
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #334155;
+            padding: 0 14px;
+            height: 36px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-copy:active {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            transform: scale(0.95);
+        }
+
+        .btn-copy.copied {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+            color: white;
+        }
+
+        @media (max-width: 480px) {
+            .url-selector span { display: none; }
+            .floating-island { right: 8px; }
+            .panel-content { width: calc(100vw - 16px); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 密碼驗證全螢幕遮罩 -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <div class="login-icon">🔒</div>
+            <h2>請輸入安全密碼</h2>
+            <p>此為私人快刷工具，驗證後即可進入系統</p>
+            <!-- 關閉自動大寫與自動校正，防止手機打 corn 變成 Corn -->
+            <input type="password" id="pwd-input" class="login-input" placeholder="請輸入密碼..." 
+                   autocapitalize="off" autocorrect="off" spellcheck="false" 
+                   onkeydown="handleLoginKey(event)">
+            <button class="btn-login" onclick="checkPassword()">進入系統</button>
+            <div id="error-msg" class="error-msg">❌ 密碼錯誤，請重新輸入</div>
+        </div>
+    </div>
+
+    <!-- 頂部：信箱切換列 -->
+    <div class="top-toolbar">
+        <div class="url-selector">
+            <span>📧 信箱服務：</span>
+            <select id="mail-select" onchange="changeUrl()">
+                <option value="https://temp-mail.org/">Temp-Mail (常用)</option>
+                <option value="https://10minutemail.net/">10 Minute Mail (推薦備用)</option>
+                <option value="https://mail.tm/">Mail.tm (極簡清爽)</option>
+                <option value="https://www.guerrillamail.com/">Guerrilla Mail (免洗老牌)</option>
+            </select>
+        </div>
+        <a id="external-link" href="https://temp-mail.org/" target="_blank" class="btn-external">↗ 外部開啟</a>
+    </div>
+
+    <!-- 100% 滿版臨時信箱工作區 -->
+    <div class="main-container">
+        <div class="iframe-fallback">
+            <h2>🛡️ 網站安全防護啟用中</h2>
+            <p>此信箱站點阻擋了內嵌功能。為達到最佳快刷體驗，請點擊下方按鈕：</p>
+            <button class="btn-popup" onclick="openPopOut()">🖥️ 召喚獨立信箱小視窗</button>
+        </div>
+        <iframe id="mail-frame" src="https://temp-mail.org/" title="Temp Mail"></iframe>
+    </div>
+
+    <!-- 專業級：懸浮快刷島 -->
+    <div class="floating-island open" id="floating-island">
+        <button class="toggle-capsule" onclick="toggleIsland()">
+            <span>📋 邀請碼與密碼</span>
+            <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+        </button>
+
+        <div class="panel-content">
+            <div class="section-header">🌱 皮克敏邀請碼</div>
+            
+            <div class="copy-card">
+                <div class="info">
+                    <span class="label">我</span>
+                    <span class="value">HTWVDHFBX</span>
+                </div>
+                <button class="btn-copy" onclick="copyText('HTWVDHFBX', this)">複製</button>
+            </div>
+
+            <div class="copy-card">
+                <div class="info">
+                    <span class="label">Oni姊</span>
+                    <span class="value">YPVKCFTJM</span>
+                </div>
+                <button class="btn-copy" onclick="copyText('YPVKCFTJM', this)">複製</button>
+            </div>
+
+            <div class="copy-card">
+                <div class="info">
+                    <span class="label">Oni妹</span>
+                    <span class="value">AKXNRXKBR</span>
+                </div>
+                <button class="btn-copy" onclick="copyText('AKXNRXKBR', this)">複製</button>
+            </div>
+
+            <div class="section-header" style="margin-top: 6px;">🔑 常用帳密</div>
+            
+            <div class="copy-card">
+                <div class="info">
+                    <span class="label">預設帳密</span>
+                    <span class="value">Qq123456</span>
+                </div>
+                <button class="btn-copy" onclick="copyText('Qq123456', this)">複製</button>
+            </div>
+
+            <div style="text-align: center; margin-top: 4px;">
+                <span onclick="toggleIsland()" style="font-size: 0.75rem; color: #64748b; text-decoration: underline; cursor: pointer; padding: 4px;">
+                    ▲ 點此收起面板，全螢幕操作信箱
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================= 密碼驗證系統 =================
+        document.addEventListener("DOMContentLoaded", () => {
+            // 檢查暫存，如果當前分頁已經登入過，直接解鎖（刷新頁面免重登）
+            if (sessionStorage.getItem("pikmin_auth_passed") === "true") {
+                document.getElementById("login-overlay").classList.add("hidden");
+            } else {
+                // 微幅延遲聚焦，讓手機瀏覽器有準備時間
+                setTimeout(() => {
+                    document.getElementById("pwd-input").focus();
+                }, 300);
+            }
+        });
+
+        function checkPassword() {
+            const input = document.getElementById("pwd-input");
+            const errorMsg = document.getElementById("error-msg");
+            const val = input.value.trim();
+
+            // 驗證密碼是否為 corn
+            if (val === "corn") {
+                sessionStorage.setItem("pikmin_auth_passed", "true");
+                document.getElementById("login-overlay").classList.add("hidden");
+            } else {
+                // 密碼錯誤：震動並顯示錯誤提示
+                input.classList.add("error");
+                errorMsg.classList.add("show");
+                input.value = "";
+                input.focus();
+                
+                setTimeout(() => {
+                    input.classList.remove("error");
+                }, 300);
+            }
+        }
+
+        // 支援手機鍵盤點擊「前往/Enter」直接送出驗證
+        function handleLoginKey(event) {
+            if (event.key === "Enter") {
+                checkPassword();
+            }
+        }
+
+        // ================= 面板與複製系統 =================
+        function toggleIsland() {
+            const island = document.getElementById('floating-island');
+            island.classList.toggle('open');
+        }
+
+        function copyText(text, btnElement) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text)
+                    .then(() => showSuccess(btnElement))
+                    .catch(() => fallbackCopy(text, btnElement));
+            } else {
+                fallbackCopy(text, btnElement);
+            }
+        }
+
+        function fallbackCopy(text, btnElement) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showSuccess(btnElement);
+            } catch (err) {
+                alert('複製失敗，請手動複製：' + text);
+            }
+            textArea.remove();
+        }
+
+        function showSuccess(btnElement) {
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "已複製!";
+            btnElement.classList.add("copied");
+
+            setTimeout(() => {
+                btnElement.innerText = originalText;
+                btnElement.classList.remove("copied");
+            }, 1200);
+        }
+
+        function changeUrl() {
+            const select = document.getElementById('mail-select');
+            const selectedUrl = select.value;
+            document.getElementById('mail-frame').src = selectedUrl;
+            document.getElementById('external-link').href = selectedUrl;
+        }
+
+        function openPopOut() {
+            const select = document.getElementById('mail-select');
+            const url = select.value;
+            const width = Math.min(window.screen.width - 20, 800);
+            const height = Math.min(window.screen.height - 100, 700);
+            const left = Math.max(0, (window.screen.width - width) / 2);
+            const top = 40;
+            
+            window.open(
+                url, 
+                'TempMailPopOut', 
+                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
+            );
+        }
+    </script>
+</body>
+</html>
