@@ -294,6 +294,7 @@
         </div>
     </div>
 
+    <!-- 外部路線模式切換面板 -->
     <div class="mode-panel">
         <span>⚙️ 路線模式：</span>
         <label><input type="radio" name="routeModeOut" value="direct" onchange="setRouteType('direct')" checked> 📍 直連</label>
@@ -985,7 +986,7 @@
 
                         let pathLocal = [];
                         let direction = 1; // 1 for L->R, -1 for R->L
-                        let spacing = 25; // 25M 間距
+                        let spacing = 30; // 30M 間距
                         
                         // 產生格柵線並找出與邊界的交點
                         for (let yScan = minY + spacing/2; yScan <= maxY; yScan += spacing) {
