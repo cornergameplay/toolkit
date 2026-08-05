@@ -96,7 +96,7 @@
             margin-top: 15px; flex-wrap: wrap;
         }
         .mode-panel span { font-weight: bold; color: #856404; }
-        .mode-panel label { margin: 0; cursor: pointer; color: #333; font-weight: bold; display: flex; align-items: center; gap: 5px;}
+        .mode-panel label { margin: 0; cursor: pointer; color: #333; font-weight: bold; display: flex; align-items: center; gap: 5px; white-space: nowrap;}
         .mode-panel input { cursor: pointer; width: 16px; height: 16px; margin:0; }
         .mode-panel input:disabled { cursor: not-allowed; }
 
@@ -115,6 +115,7 @@
         .combo-badge.straight { background: #1abc9c; }
         .combo-badge.qi { background: #8e44ad; }
         .combo-badge.scan { background: #f39c12; }
+        .combo-badge.gridScan { background: #16a085; }
         
         .combo-badge-rev {
             cursor: pointer; background: rgba(255,255,255,0.25); border-radius: 50%; 
@@ -147,6 +148,9 @@
         .combo-add-btn.scan { border-color: #f39c12; color: #f39c12; }
         .combo-add-btn.scan:hover:not(:disabled) { background: #f39c12; color: white; }
         .combo-add-btn.scan:disabled { opacity: 0.4; cursor: not-allowed; border-color: #ccc; color: #999; }
+        .combo-add-btn.gridScan { border-color: #16a085; color: #16a085; }
+        .combo-add-btn.gridScan:hover:not(:disabled) { background: #16a085; color: white; }
+        .combo-add-btn.gridScan:disabled { opacity: 0.4; cursor: not-allowed; border-color: #ccc; color: #999; }
 
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -155,9 +159,11 @@
         }
         .modal-content {
             background: white; padding: 20px; border-radius: 8px;
-            width: 90%; max-width: 800px; position: relative;
+            width: 95%; max-width: 900px; position: relative;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            max-height: 90vh; overflow-y: auto;
+            max-height: 95vh; overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
         .close-btn {
             position: absolute; top: 15px; right: 20px;
@@ -166,35 +172,79 @@
         }
         .close-btn:hover { color: #333; }
         
-        #map { height: 420px; width: 100%; border-radius: 4px; border: 1px solid #ccc; z-index: 1; margin-bottom: 15px; }
+        #map { flex-grow: 1; min-height: 300px; height: 420px; width: 100%; border-radius: 4px; border: 1px solid #ccc; z-index: 1; margin-bottom: 15px; }
         
-        .action-bar { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: stretch; }
+        /* ----------------------------------------------------
+           終極防呆緊湊排版：利用 CSS Grid 將按鈕體積壓縮到極致 
+           ---------------------------------------------------- */
+        
+        .action-bar-top { 
+            display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; align-items: stretch;
+        }
+
+        /* 路線模式切換：完美重現無縫相連感，但手機上變為 3x3 九宮格 */
         .route-toggle-group {
-            display: flex; gap: 0; border-radius: 6px; flex: 1; min-width: 250px;
-            overflow: hidden; border: 2px solid #3498db;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px; /* 創造1px藍色邊框的視覺效果 */
+            background-color: #3498db;
+            border: 2px solid #3498db;
+            border-radius: 6px;
+            overflow: hidden;
+            width: 100%;
+            flex: 1;
+        }
+        @media(min-width: 600px) {
+            .route-toggle-group { grid-template-columns: repeat(9, 1fr); }
         }
         .toggle-btn {
-            flex: 1; padding: 10px 5px; border: none; background-color: white; color: #3498db; 
-            font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.3s; margin: 0;
-            border-radius: 0; white-space: nowrap; text-align: center;
+            background-color: white; 
+            color: #3498db; 
+            border: none; 
+            padding: 8px 0; 
+            font-size: 13px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            margin: 0;
+            text-align: center;
+            border-radius: 0;
         }
-        .toggle-btn:not(:last-child) { border-right: 2px solid #3498db; }
         .toggle-btn.active { background-color: #3498db; color: white; }
         .toggle-btn:hover:not(.active) { background-color: #eaf4fc; }
         .toggle-btn:disabled { opacity: 0.4; cursor: not-allowed; color: #999; }
 
+        /* 時速設定列 */
         .speed-control {
-            display: flex; align-items: center; gap: 8px; background: #fff; 
-            border: 2px solid #bdc3c7; border-radius: 6px; padding: 0 10px; white-space: nowrap;
+            display: flex; align-items: center; justify-content: center; gap: 8px; 
+            background: #fff; border: 2px solid #bdc3c7; border-radius: 6px; 
+            padding: 4px 10px; width: 100%; box-sizing: border-box;
+        }
+        @media(min-width: 600px) {
+            .speed-control { width: auto; }
         }
         .speed-control input {
             width: 45px; border: none; outline: none; font-weight: bold; 
             color: #d35400; text-align: center; font-size: 16px; padding: 0; background: transparent;
         }
 
+        /* 附屬功能：超緊湊 3x2 方塊陣列，絕不超出畫面 */
+        .action-bar-tools { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px; 
+            margin-bottom: 8px; 
+            padding-bottom: 12px; 
+            border-bottom: 1px solid #eee; 
+        }
+        @media(min-width: 600px) {
+            .action-bar-tools { grid-template-columns: repeat(7, 1fr); }
+        }
         .btn-action-small {
-            margin: 0; padding: 0 12px; color: white; border: none; border-radius: 6px; 
-            font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.3s; white-space: nowrap;
+            margin: 0; padding: 8px 0; color: white; border: none; border-radius: 6px; 
+            font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.3s; 
+            white-space: nowrap; text-align: center; width: 100%; box-sizing: border-box;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .btn-optimize { background-color: #1abc9c; }
         .btn-optimize:hover { background-color: #16a085; }
@@ -202,17 +252,17 @@
         .btn-reverse:hover { background-color: #e67e22; }
         .btn-undo { background-color: #95a5a6; }
         .btn-undo:hover:not(:disabled) { background-color: #7f8c8d; }
-        .btn-undo:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-undo:disabled { opacity: 0.5; cursor: not-allowed; background-color: #bdc3c7;}
         .btn-undo-opt { background-color: #e74c3c; }
         .btn-undo-opt:hover { background-color: #c0392b; }
 
         .route-stats {
             background-color: #f8f9fa; border-left: 4px solid #f39c12;
-            padding: 8px 15px; margin-bottom: 12px; border-radius: 4px;
-            font-size: 15px; color: #2c3e50; font-weight: bold;
+            padding: 8px 15px; margin-bottom: 8px; border-radius: 4px;
+            font-size: 14px; color: #2c3e50; font-weight: bold;
         }
-        .stat-highlight { color: #d35400; font-size: 18px; margin-left: 5px; margin-right: 15px; }
-        .stat-sub { color: #7f8c8d; font-size: 13px; font-weight: normal; }
+        .stat-highlight { color: #d35400; font-size: 16px; margin-left: 5px; margin-right: 15px; }
+        .stat-sub { color: #7f8c8d; font-size: 12px; font-weight: normal; }
 
         .btn-icon {
             background: white; border: 1px solid #ccc; border-radius: 4px; color: #333;
@@ -223,7 +273,6 @@
         .btn-del { color: #e74c3c; }
         .btn-del:hover:not(:disabled) { background: #fee; border-color: #fca; }
 
-        /* 地圖繪製模式專屬 CSS 強制穿透覆蓋游標，確保不擋點擊 */
         .drawing-mode { cursor: crosshair !important; }
         .drawing-mode .leaflet-interactive { cursor: crosshair !important; }
         .leaflet-container.drawing-mode { cursor: crosshair !important; }
@@ -254,6 +303,7 @@
         <label><input type="radio" name="routeModeOut" value="straight" onchange="setRouteType('straight')"> ➖ 直線</label>
         <label><input type="radio" name="routeModeOut" value="qi" onchange="setRouteType('qi')"> 〰️ 走ㄑ</label>
         <label title="需要至少3組座標才可使用"><input type="radio" name="routeModeOut" value="scan" onchange="setRouteType('scan')" disabled> 🎯 掃描</label>
+        <label title="需要至少3組座標才可使用"><input type="radio" name="routeModeOut" value="gridScan" onchange="setRouteType('gridScan')" disabled> 🕸️ 格柵</label>
         <label><input type="radio" name="routeModeOut" value="combo" onchange="setRouteType('combo')"> ♻️ 合併</label>
     </div>
 
@@ -308,12 +358,14 @@
         <button class="btn-download btn-txt" style="margin-top: 0; flex: 1;" onclick="downloadTXT()">💾 下載保存座標 (.txt)</button>
     </div>
 
+    <!-- 浮動地圖視窗 (Modal) -->
     <div id="mapModal" class="modal-overlay" onclick="closeMapModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
             <span class="close-btn" onclick="closeMapModal()">&times;</span>
-            <h3 style="margin-top: 0; color: #2c3e50; margin-bottom: 12px;">🗺️ 預覽與互動編輯</h3>
+            <h3 style="margin-top: 0; color: #2c3e50; margin-bottom: 8px;">🗺️ 預覽與互動編輯</h3>
             
-            <div class="action-bar">
+            <!-- 路線與時速列：手機上九宮格 -->
+            <div class="action-bar-top">
                 <div class="route-toggle-group">
                     <button id="btnDirect" class="toggle-btn active" onclick="setRouteType('direct')">📍 直連</button>
                     <button id="btnZigzag" class="toggle-btn" onclick="setRouteType('zigzag')">🌸 Z字</button>
@@ -321,7 +373,8 @@
                     <button id="btnCircle" class="toggle-btn" onclick="setRouteType('circle')">⭕ 繞圈</button>
                     <button id="btnStraight" class="toggle-btn" onclick="setRouteType('straight')">➖ 直線</button>
                     <button id="btnQi" class="toggle-btn" onclick="setRouteType('qi')">〰️ 走ㄑ</button>
-                    <button id="btnScan" class="toggle-btn" onclick="setRouteType('scan')" disabled title="需要至少3組座標">🎯 掃描</button>
+                    <button id="btnScan" class="toggle-btn" onclick="setRouteType('scan')" disabled>🎯 螺旋</button>
+                    <button id="btnGridScan" class="toggle-btn" onclick="setRouteType('gridScan')" disabled>🕸️ 格柵</button>
                     <button id="btnCombo" class="toggle-btn" onclick="setRouteType('combo')">♻️ 合併</button>
                 </div>
                 
@@ -332,17 +385,18 @@
                 </div>
             </div>
 
-            <div class="action-bar" style="justify-content: flex-end; border-bottom: 1px solid #eee; padding-bottom: 12px;">
-                <button id="btnS2Grid" class="btn-action-small" style="background-color: #9b59b6;" onclick="toggleS2Grid()" title="顯示 S2 Level 17 藍色網格">🌐 開啟 S2 網格</button>
-                <button id="btnMapClickAdd" class="btn-action-small" style="background-color: #34495e;" onclick="toggleMapClickAdd()" title="點擊地圖任意處即可新增座標">🖱️ 開啟地圖繪製</button>
-                <button id="btnEditMode" class="btn-action-small" style="background-color: #27ae60;" onclick="toggleEditMode()" title="開啟後可拖曳軌跡點或新增中間折點">✏️ 開啟路線修改</button>
-                <button class="btn-action-small btn-optimize" onclick="optimizeRoute()" title="自動計算極限最短耗時路徑">✨ 最佳化</button>
-                <button id="btnUndoOpt" class="btn-action-small btn-undo-opt" onclick="undoOptimize()" style="display: none;" title="恢復最佳化前的原始排序">↩️ 復原</button>
-                <button class="btn-action-small btn-reverse" onclick="reverseRoute()" title="將文字框所有座標顛倒排序">🔁 反轉</button>
-                <button id="btnUndo" class="btn-action-small btn-undo" onclick="undoLastAction()" disabled title="復原上一步操作">↩️ 復原</button>
+            <!-- 附屬功能：手機上精緻 3x2 方塊陣列 -->
+            <div class="action-bar-tools">
+                <button id="btnS2Grid" class="btn-action-small" style="background-color: #9b59b6;" onclick="toggleS2Grid()">🌐 網格</button>
+                <button id="btnMapClickAdd" class="btn-action-small" style="background-color: #34495e;" onclick="toggleMapClickAdd()">🖱️ 新增</button>
+                <button id="btnEditMode" class="btn-action-small" style="background-color: #27ae60;" onclick="toggleEditMode()">✏️ 修改</button>
+                <button class="btn-action-small btn-optimize" onclick="optimizeRoute()">✨ 最佳化</button>
+                <button id="btnUndoOpt" class="btn-action-small btn-undo-opt" onclick="undoOptimize()" style="display: none;">↩️ 取消</button>
+                <button class="btn-action-small btn-reverse" onclick="reverseRoute()">🔁 反轉</button>
+                <button id="btnUndo" class="btn-action-small btn-undo" onclick="undoLastAction()" disabled>↩️ 復原</button>
             </div>
 
-            <div id="comboBuilderModal" class="combo-builder" style="margin-bottom: 12px; margin-top: 0;"></div>
+            <div id="comboBuilderModal" class="combo-builder" style="margin-bottom: 8px; margin-top: 0;"></div>
 
             <div id="routeStats" class="route-stats">
                 ⏱️ 預估耗時: <span class="stat-highlight">-- 分鐘</span>
@@ -351,9 +405,8 @@
 
             <div id="map"></div>
             
-            <div style="display: flex; gap: 10px;">
-                <button class="btn-download" style="margin-top: 0; flex: 1;" onclick="generateAndDownloadGPX()">⬇️ 產生並下載 GPX 檔案</button>
-                <button class="btn-download btn-txt" style="margin-top: 0; flex: 1;" onclick="downloadTXT()">💾 下載保存座標 (.txt)</button>
+            <div style="display: flex; gap: 10px; margin-top: auto;">
+                <button class="btn-download" style="margin-top: 0; flex: 1;" onclick="generateAndDownloadGPX()">⬇️ 產生並下載</button>
             </div>
         </div>
     </div>
@@ -544,7 +597,8 @@
             else if (currentRouteType === 'circle') modeName = '繞圈';
             else if (currentRouteType === 'straight') modeName = '直線';
             else if (currentRouteType === 'qi') modeName = '走ㄑ';
-            else if (currentRouteType === 'scan') modeName = '掃描';
+            else if (currentRouteType === 'scan') modeName = '螺旋掃描';
+            else if (currentRouteType === 'gridScan') modeName = '格柵掃描';
             else if (currentRouteType === 'combo') modeName = '合併';
 
             let timeDiffStr = "未知時差";
@@ -738,6 +792,7 @@
             else if (currentRouteType === 'straight') sequence = [{type: 'straight', reverse: false}];
             else if (currentRouteType === 'qi') sequence = [{type: 'qi', reverse: false}];
             else if (currentRouteType === 'scan') sequence = [{type: 'scan', reverse: false}];
+            else if (currentRouteType === 'gridScan') sequence = [{type: 'gridScan', reverse: false}];
             else if (currentRouteType === 'combo') sequence = comboSequence;
 
             sequence.forEach((step, stepIndex) => {
@@ -754,7 +809,8 @@
                 else if (step.type === 'circle') { typeLabel = '⭕ 繞圈'; bgColor = '#e84393'; }
                 else if (step.type === 'straight') { typeLabel = '➖ 完整直線'; bgColor = '#1abc9c'; }
                 else if (step.type === 'qi') { typeLabel = '〰️ 走ㄑ'; bgColor = '#8e44ad'; }
-                else if (step.type === 'scan') { typeLabel = '🎯 掃描'; bgColor = '#f39c12'; }
+                else if (step.type === 'scan') { typeLabel = '🎯 螺旋掃描'; bgColor = '#f39c12'; }
+                else if (step.type === 'gridScan') { typeLabel = '🕸️ 格柵掃描'; bgColor = '#16a085'; }
 
                 let stepDesc = `${typeLabel} (步驟 ${stepIndex + 1}${step.reverse ? ' 反向' : ''})`;
 
@@ -883,6 +939,108 @@
                         });
                     });
                     return; 
+                }
+                else if (step.type === 'gridScan') {
+                    let scanPts = [];
+                    if (points.length >= 3) {
+                        let lat0 = points[0].lat;
+                        let lon0 = points[0].lon;
+                        let localPts = points.map(p => {
+                            return {
+                                x: (p.lon - lon0) * 111320 * Math.cos(lat0 * Math.PI / 180),
+                                y: (p.lat - lat0) * 111320
+                            };
+                        });
+
+                        // 找出讓高度 (Y軸範圍) 最小的最佳旋轉角度，以減少折返次數
+                        let bestAngle = 0;
+                        let minHeight = Infinity;
+                        for (let angleDeg = 0; angleDeg < 180; angleDeg += 5) {
+                            let rad = angleDeg * Math.PI / 180;
+                            let cosA = Math.cos(rad);
+                            let sinA = Math.sin(rad);
+                            let minY = Infinity, maxY = -Infinity;
+                            for (let p of localPts) {
+                                let ry = -p.x * sinA + p.y * cosA;
+                                if (ry < minY) minY = ry;
+                                if (ry > maxY) maxY = ry;
+                            }
+                            let height = maxY - minY;
+                            if (height < minHeight) {
+                                minHeight = height;
+                                bestAngle = rad;
+                            }
+                        }
+
+                        // 旋轉多邊形
+                        let cosA = Math.cos(bestAngle);
+                        let sinA = Math.sin(bestAngle);
+                        let rotatedPts = localPts.map(p => ({
+                            x: p.x * cosA + p.y * sinA,
+                            y: -p.x * sinA + p.y * cosA
+                        }));
+
+                        let minY = Math.min(...rotatedPts.map(p => p.y));
+                        let maxY = Math.max(...rotatedPts.map(p => p.y));
+
+                        let pathLocal = [];
+                        let direction = 1; // 1 for L->R, -1 for R->L
+                        let spacing = 25; // 25M 間距
+                        
+                        // 產生格柵線並找出與邊界的交點
+                        for (let yScan = minY + spacing/2; yScan <= maxY; yScan += spacing) {
+                            let intersections = [];
+                            for (let i = 0, j = rotatedPts.length - 1; i < rotatedPts.length; j = i++) {
+                                let p1 = rotatedPts[i];
+                                let p2 = rotatedPts[j];
+                                if ((p1.y <= yScan && p2.y > yScan) || (p2.y <= yScan && p1.y > yScan)) {
+                                    let xInt = p1.x + (yScan - p1.y) * (p2.x - p1.x) / (p2.y - p1.y);
+                                    intersections.push(xInt);
+                                }
+                            }
+                            if (intersections.length >= 2) {
+                                let minX = Math.min(...intersections);
+                                let maxX = Math.max(...intersections);
+                                
+                                if (direction === 1) {
+                                    pathLocal.push({ x: minX, y: yScan });
+                                    pathLocal.push({ x: maxX, y: yScan });
+                                } else {
+                                    pathLocal.push({ x: maxX, y: yScan });
+                                    pathLocal.push({ x: minX, y: yScan });
+                                }
+                                direction *= -1;
+                            }
+                        }
+
+                        // 旋轉回原始角度並轉回經緯度
+                        scanPts = pathLocal.map(p => {
+                            let origX = p.x * cosA - p.y * sinA;
+                            let origY = p.x * sinA + p.y * cosA;
+                            return {
+                                lat: lat0 + (origY / 111320),
+                                lon: lon0 + (origX / (111320 * Math.cos(lat0 * Math.PI / 180)))
+                            };
+                        });
+                        
+                        // 如果面積過小無法產生掃描線，退回原始點位
+                        if(scanPts.length === 0) {
+                           scanPts = points;
+                        }
+                    } else {
+                        scanPts = points;
+                    }
+
+                    if (step.reverse) scanPts.reverse();
+
+                    scanPts.forEach((pt) => {
+                        result.push({
+                            lat: pt.lat, lon: pt.lon, 
+                            originalIndex: 0, 
+                            desc: stepDesc, bgColor: bgColor
+                        });
+                    });
+                    return;
                 }
 
                 stepPoints.forEach((item) => {
@@ -1099,6 +1257,9 @@
             let btnScanModal = document.getElementById('btnScan');
             if(btnScanModal) btnScanModal.classList.toggle('active', type === 'scan');
             
+            let btnGridScanModal = document.getElementById('btnGridScan');
+            if(btnGridScanModal) btnGridScanModal.classList.toggle('active', type === 'gridScan');
+            
             document.getElementById('btnCombo').classList.toggle('active', type === 'combo');
             
             const radios = document.getElementsByName('routeModeOut');
@@ -1121,10 +1282,10 @@
             const btn = document.getElementById('btnEditMode');
             if (editModeEnabled) {
                 btn.style.backgroundColor = '#d35400';
-                btn.innerText = '✏️ 關閉路線修改';
+                btn.innerText = '✏️ 關閉修改';
             } else {
                 btn.style.backgroundColor = '#27ae60';
-                btn.innerText = '✏️ 開啟路線修改';
+                btn.innerText = '✏️ 開啟修改';
             }
             updateMap(); 
         }
@@ -1135,11 +1296,11 @@
             const mapContainer = document.getElementById('map');
             if (mapClickAddEnabled) {
                 btn.style.backgroundColor = '#9b59b6';
-                btn.innerText = '🖱️ 關閉地圖繪製';
+                btn.innerText = '🖱️ 關閉點擊新增';
                 mapContainer.classList.add('drawing-mode');
             } else {
                 btn.style.backgroundColor = '#34495e';
-                btn.innerText = '🖱️ 開啟地圖繪製';
+                btn.innerText = '🖱️ 點擊新增';
                 mapContainer.classList.remove('drawing-mode');
             }
         }
@@ -1164,14 +1325,14 @@
             const btn = document.getElementById('btnS2Grid');
             if (s2Enabled) {
                 btn.style.backgroundColor = '#8e44ad';
-                btn.innerText = '🌐 關閉 S2 網格';
+                btn.innerText = '🌐 關閉網格';
                 if (!s2Layer) s2Layer = L.featureGroup().addTo(map);
                 map.on('moveend', drawS2Grid);
                 map.on('zoomend', drawS2Grid);
                 drawS2Grid();
             } else {
                 btn.style.backgroundColor = '#9b59b6';
-                btn.innerText = '🌐 開啟 S2 網格';
+                btn.innerText = '🌐 開啟網格';
                 map.off('moveend', drawS2Grid);
                 map.off('zoomend', drawS2Grid);
                 if (s2Layer) s2Layer.clearLayers();
@@ -1245,7 +1406,8 @@
                 else if (step.type === 'circle') { text = '⭕ 繞圈'; bgClass = 'circle'; }
                 else if (step.type === 'straight') { text = '➖ 直線'; bgClass = 'straight'; }
                 else if (step.type === 'qi') { text = '〰️ 走ㄑ'; bgClass = 'qi'; }
-                else if (step.type === 'scan') { text = '🎯 掃描'; bgClass = 'scan'; }
+                else if (step.type === 'scan') { text = '🎯 螺旋掃描'; bgClass = 'scan'; }
+                else if (step.type === 'gridScan') { text = '🕸️ 格柵'; bgClass = 'gridScan'; }
                 else { text = '📍 直連'; bgClass = ''; }
                 
                 if (step.reverse) text += ' <span style="color:#ffeb3b;">(反向)</span>';
@@ -1272,7 +1434,8 @@
                         <button class="combo-add-btn circle" onclick="addComboStep('circle')">➕ 繞圈</button>
                         <button class="combo-add-btn straight" onclick="addComboStep('straight')">➕ 直線</button>
                         <button class="combo-add-btn qi" onclick="addComboStep('qi')">➕ 走ㄑ</button>
-                        <button class="combo-add-btn scan" onclick="addComboStep('scan')" ${scanDisabledStr}>➕ 掃描</button>
+                        <button class="combo-add-btn scan" onclick="addComboStep('scan')" ${scanDisabledStr}>➕ 螺旋</button>
+                        <button class="combo-add-btn gridScan" onclick="addComboStep('gridScan')" ${scanDisabledStr}>➕ 格柵</button>
                      </div>`;
 
             document.getElementById('comboBuilderMain').innerHTML = html;
@@ -1395,12 +1558,15 @@
             
             let isScanEligible = points.length >= 3;
             document.getElementsByName('routeModeOut').forEach(r => {
-                if (r.value === 'scan') r.disabled = !isScanEligible;
+                if (r.value === 'scan' || r.value === 'gridScan') r.disabled = !isScanEligible;
             });
             let btnScanModal = document.getElementById('btnScan');
             if (btnScanModal) btnScanModal.disabled = !isScanEligible;
             
-            if (!isScanEligible && currentRouteType === 'scan') {
+            let btnGridScanModal = document.getElementById('btnGridScan');
+            if (btnGridScanModal) btnGridScanModal.disabled = !isScanEligible;
+            
+            if (!isScanEligible && (currentRouteType === 'scan' || currentRouteType === 'gridScan')) {
                 setRouteType('direct');
             }
 
@@ -1487,11 +1653,12 @@
                         setTimeout(() => { isDragging = false; }, 100);
                     });
 
+                    // 將視窗縮小，並加入 autoPan: false 防止地圖亂跳
                     let popupHtml = `
-                        <div style="text-align: center; min-width: 120px; padding: 2px;">
-                            <div style="margin-bottom: 6px; font-size: 13px; color: #2c3e50;">
+                        <div style="text-align: center; min-width: 110px; padding: 0;">
+                            <div style="margin-bottom: 8px; font-size: 14px; color: #2c3e50;">
                                 <strong>軌跡點 ${pointNumber}</strong>
-                                <div style="font-size:11px; color:#e67e22; margin-top:2px;">${ptMeta.desc} <br> 原座標 ${ptMeta.originalIndex + 1}</div>
+                                <div style="font-size:11px; color:#e67e22; margin-top:2px;">原座標 ${ptMeta.originalIndex + 1}</div>
                             </div>
                             <div style="display: flex; gap: 4px; justify-content: center;">
                                 <button class="btn-icon" style="padding: 4px 6px; font-size:14px;" onclick="movePointUp(${ptMeta.originalIndex})" ${ptMeta.originalIndex === 0 ? 'disabled' : ''} title="往前一號">⬆️</button>
@@ -1500,7 +1667,7 @@
                             </div>
                         </div>
                     `;
-                    marker.bindPopup(popupHtml, { autoPan: false });
+                    marker.bindPopup(popupHtml, { autoPan: false, className: 'small-popup' });
                     markers.push(marker);
                 });
 
