@@ -2,118 +2,80 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <!-- 確保手機版比例正確、禁止雙擊放大，提供原生 App 體驗 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>皮克敏路線規劃與 S2 網格工具 (Lv.17 版)</title>
+    <title>皮克敏路線規劃與 S2 網格工具 (15m切邊穩定版)</title>
     
-    <!-- 引入 Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- 引入 Geoman CSS (路徑編輯套件) -->
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
     
     <style>
-        /* 全域重置 */
         * { box-sizing: border-box; }
-        
-        /* 使用 100dvh 解決手機瀏覽器網址列遮擋問題 */
         html, body {
-            margin: 0; padding: 0;
-            width: 100vw; height: 100vh;
-            height: 100dvh; 
+            margin: 0; padding: 0; width: 100vw; height: 100vh; height: 100dvh; 
             font-family: "Microsoft JhengHei", "PingFang TC", Arial, sans-serif;
-            background-color: #f4f6f8;
-            overflow: hidden; 
-            display: flex; flex-direction: column;
+            background-color: #f4f6f8; overflow: hidden; display: flex; flex-direction: column;
         }
 
-        /* 頂部導覽列 */
         header {
-            background-color: #2e7d32; color: white;
-            padding: 10px 15px; display: flex;
+            background-color: #2e7d32; color: white; padding: 10px 15px; display: flex;
             justify-content: space-between; align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 2000;
-            height: 55px; flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 2000; height: 55px; flex-shrink: 0;
         }
         .header-left { display: flex; align-items: center; gap: 10px; }
         header h1 { margin: 0; font-size: 18px; white-space: nowrap; }
         
-        .btn-icon {
-            background: none; border: none; color: white;
-            font-size: 26px; cursor: pointer; padding: 0 5px;
-        }
+        .btn-icon { background: none; border: none; color: white; font-size: 26px; cursor: pointer; padding: 0 5px; }
         .btn-help {
-            background-color: #ffffff; color: #2e7d32; border: none;
-            padding: 6px 12px; border-radius: 20px; font-weight: bold;
-            font-size: 13px; cursor: pointer; transition: all 0.2s;
+            background-color: #ffffff; color: #2e7d32; border: none; padding: 6px 12px; 
+            border-radius: 20px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s;
         }
 
-        /* 主體佈局 */
-        .main-container {
-            display: flex; flex: 1; position: relative; height: calc(100dvh - 55px);
-        }
+        .main-container { display: flex; flex: 1; position: relative; height: calc(100dvh - 55px); }
 
-        /* 側邊控制欄 */
         #sidebar {
-            width: 360px; min-width: 360px; height: 100%;
-            background-color: #ffffff; box-shadow: 3px 0 10px rgba(0,0,0,0.1);
-            z-index: 1500; display: flex; flex-direction: column;
-            overflow-y: auto; overflow-x: hidden;
-            /* 底部保留 150px 確保手機按鈕不被遮擋 */
-            padding: 15px 20px 150px 20px; 
-            -webkit-overflow-scrolling: touch;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: absolute; left: 0; top: 0; bottom: 0;
-            transform: translateX(0); /* 電腦版預設開啟 */
+            width: 360px; min-width: 360px; height: 100%; background-color: #ffffff; 
+            box-shadow: 3px 0 10px rgba(0,0,0,0.1); z-index: 1500; display: flex; flex-direction: column;
+            overflow-y: auto; overflow-x: hidden; padding: 15px 20px 150px 20px; 
+            -webkit-overflow-scrolling: touch; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute; left: 0; top: 0; bottom: 0; transform: translateX(0);
         }
         
-        /* 側邊欄遮罩 */
         #sidebarOverlay {
             display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.6); z-index: 1400;
-            transition: opacity 0.3s;
+            background: rgba(0,0,0,0.6); z-index: 1400; transition: opacity 0.3s;
         }
 
-        /* 地圖區塊 */
         #map { flex-grow: 1; height: 100%; position: relative; width: 100%; z-index: 1;}
 
-        /* 側邊欄內部元素設計 */
         .section-title {
-            font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 8px;
-            color: #1b5e20; background-color: #e8f5e9; padding: 8px 10px;
-            border-left: 4px solid #4caf50; border-radius: 0 4px 4px 0;
+            font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 8px; color: #1b5e20; 
+            background-color: #e8f5e9; padding: 8px 10px; border-left: 4px solid #4caf50; border-radius: 0 4px 4px 0;
         }
         .form-group { margin-bottom: 12px; }
-        input[type="text"] {
-            width: 100%; padding: 10px; border: 1px solid #ccc;
-            border-radius: 4px; font-size: 14px;
-        }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
         textarea {
-            width: 100%; min-height: 100px; padding: 10px;
-            border: 1px solid #ccc; border-radius: 4px; font-size: 14px;
-            resize: vertical; font-family: monospace; white-space: pre-wrap;
+            width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ccc; 
+            border-radius: 4px; font-size: 14px; resize: vertical; font-family: monospace; white-space: pre-wrap;
         }
         .help-text { font-size: 12px; color: #666; margin-bottom: 10px; line-height: 1.5; }
 
         .file-input-wrapper { position: relative; margin-bottom: 10px; }
         .btn-file-import {
-            background-color: #78909c; color: white; padding: 10px;
-            border-radius: 4px; cursor: pointer; display: block;
-            width: 100%; text-align: center; font-size: 14px; font-weight: bold;
+            background-color: #78909c; color: white; padding: 10px; border-radius: 4px; 
+            cursor: pointer; display: block; width: 100%; text-align: center; font-size: 14px; font-weight: bold;
         }
-        #gpxFileInput {
-            position: absolute; left: 0; top: 0; opacity: 0;
-            width: 100%; height: 100%; cursor: pointer;
-        }
+        #gpxFileInput { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
 
-        /* 側邊欄按鈕 */
         button {
-            padding: 10px; margin-bottom: 8px; color: white; border: none;
-            border-radius: 4px; cursor: pointer; width: 100%; font-size: 14px;
-            font-weight: bold; transition: opacity 0.2s;
+            padding: 10px; margin-bottom: 8px; color: white; border: none; border-radius: 4px; 
+            cursor: pointer; width: 100%; font-size: 14px; font-weight: bold; transition: opacity 0.2s;
         }
         button:hover { opacity: 0.85; }
+        button:disabled { opacity: 0.6; cursor: wait; }
         
         .btn-draw { background-color: #4caf50; }
+        .btn-clear-coords { background-color: #757575; }
+        .btn-road { background-color: #1e88e5; font-size: 15px;}
         .btn-optimize { background-color: #9c27b0; }
         .btn-scan { background-color: #d81b60; }
         .btn-undo { background-color: #607d8b; }
@@ -124,88 +86,66 @@
         .btn-toggle.active { background-color: #37474f; }
         
         .flex-row { display: flex; gap: 8px; width: 100%; margin-bottom: 8px; align-items: center; }
-        .flex-row button { margin-bottom: 0; flex: 1; padding: 12px 5px; font-size: 13px;}
+        .flex-row button { margin-bottom: 0; flex: 1; padding: 10px 2px; font-size: 13px;}
         
-        /* 掃描間隔設定區塊 */
         .setting-box {
             background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; 
             padding: 8px 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
         }
         .setting-box label { font-size: 13px; font-weight: bold; color: #444; }
-        .setting-box input[type="number"] {
-            width: 70px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-size: 14px;
-        }
+        .setting-box input[type="number"] { width: 70px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-size: 14px; }
 
         .distance-display {
-            background-color: #fff3e0; color: #e65100; font-size: 16px;
-            font-weight: bold; padding: 12px; border-radius: 4px;
-            text-align: center; border: 2px dashed #ffb74d; margin: 10px 0;
+            background-color: #fff3e0; color: #e65100; font-size: 16px; font-weight: bold; 
+            padding: 12px; border-radius: 4px; text-align: center; border: 2px dashed #ffb74d; margin: 10px 0;
         }
 
-        /* ★★★ 地圖懸浮快捷鍵 (FABs) 電腦版 ★★★ */
+        /* FABs 懸浮按鈕 */
         .map-fabs {
-            position: absolute; bottom: 30px; right: 15px; z-index: 1000;
-            display: flex; flex-direction: column; gap: 15px;
+            position: absolute; bottom: 30px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 10px;
         }
         .fab {
             background-color: #ffffff; border: 2px solid #ccc; color: #333;
-            width: 50px; height: 50px; border-radius: 50%; font-size: 22px;
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            transition: transform 0.1s; padding: 0; margin: 0;
+            width: 45px; height: 45px; border-radius: 50%; font-size: 18px;
+            display: flex; justify-content: center; align-items: center; cursor: pointer; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3); transition: transform 0.1s; padding: 0; margin: 0;
         }
         .fab:active { transform: scale(0.9); background-color: #f0f0f0; }
+        .fab.fab-road { border-color: #1e88e5; color: #1e88e5; }
         .fab.fab-opt { border-color: #9c27b0; color: #9c27b0; }
         .fab.fab-scan { border-color: #d81b60; color: #d81b60; }
         .fab.fab-undo { border-color: #607d8b; color: #607d8b; }
         .fab.fab-clear { border-color: #e53935; color: #e53935; }
 
-        /* ★★★ 手機版響應式設計 (RWD) ★★★ */
+        /* 手機版 RWD */
         @media (max-width: 768px) {
-            #sidebar {
-                width: 85%; min-width: 280px; max-width: 400px;
-                transform: translateX(-100%); /* 手機預設隱藏側邊欄 */
-            }
+            #sidebar { width: 85%; min-width: 280px; max-width: 400px; transform: translateX(-100%); }
             #sidebar.open { transform: translateX(0); }
             
-            /* 手機版 FAB：底部絕對置中、水平排列、不會消失 */
             .map-fabs {
-                bottom: 25px; 
-                left: 50%; right: auto; 
-                transform: translateX(-50%);
-                flex-direction: row; 
-                gap: 10px; /* 調小間距確保直向螢幕能完整塞入4顆按鈕 */
-                width: max-content;
+                bottom: 25px; left: 50%; right: auto; transform: translateX(-50%);
+                flex-direction: row; gap: 8px; width: max-content;
             }
-            .fab { width: 45px; height: 45px; font-size: 20px; }
-            
-            /* 避免浮水印擋住按鈕 */
+            .fab { width: 42px; height: 42px; font-size: 16px; }
             .leaflet-control-attribution { margin-bottom: 85px !important; }
         }
-
-        /* 手動收合狀態 (供電腦版使用) */
         #sidebar.collapsed { transform: translateX(-100%); }
 
         /* 教學視窗 */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.6); z-index: 3000;
-            display: none; justify-content: center; align-items: center;
+            background: rgba(0, 0, 0, 0.6); z-index: 3000; display: none; justify-content: center; align-items: center;
         }
         .modal-content {
-            background: #fff; width: 90%; max-width: 500px; border-radius: 8px;
-            padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            max-height: 85vh; overflow-y: auto;
+            background: #fff; width: 90%; max-width: 500px; border-radius: 8px; padding: 20px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 85vh; overflow-y: auto;
         }
         .modal-header {
             display: flex; justify-content: space-between; align-items: center;
             border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px;
         }
         .modal-header h2 { margin: 0; color: #2e7d32; font-size: 18px;}
-        .close-modal {
-            background: none; border: none; font-size: 28px; color: #999;
-            cursor: pointer; width: auto; padding: 0; margin-bottom: 0;
-        }
+        .close-modal { background: none; border: none; font-size: 28px; color: #999; cursor: pointer; padding: 0; margin: 0; }
         .tutorial-list { padding-left: 20px; font-size: 14px; }
         .tutorial-list li { margin-bottom: 10px; line-height: 1.5; color: #444; }
         .highlight { color: #d32f2f; font-weight: bold; }
@@ -213,7 +153,6 @@
 </head>
 <body>
 
-    <!-- 頂部導覽列 -->
     <header>
         <div class="header-left">
             <button class="btn-icon" onclick="toggleSidebar(true)">☰</button>
@@ -223,47 +162,47 @@
     </header>
 
     <div class="main-container">
-        <!-- 側邊選單遮罩 -->
         <div id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
 
-        <!-- 側邊控制欄 -->
         <div id="sidebar">
-            <div class="section-title">📂 1. 檔案與匯出名稱</div>
+            <div class="section-title">📂 1. 檔案與匯出設定</div>
             <div class="form-group">
                 <input type="text" id="fileNameInput" value="pikmin_route" placeholder="請輸入匯出 GPX 檔案名稱">
             </div>
             <div class="file-input-wrapper">
-                <span class="btn-file-import">📥 讀取 GPX 提取座標至下方</span>
+                <span class="btn-file-import">📥 讀取 GPX 提取座標</span>
                 <input type="file" id="gpxFileInput" accept=".gpx">
             </div>
 
             <div class="section-title">📍 2. 種花基準點 (50m 圓形)</div>
-            <div class="help-text">
-                * 格式「緯度, 經度」。可拉右下角放大欄位。<br>
-                * 僅標示 50m 範圍，不會自動連線。
-            </div>
             <textarea id="coordsInput" placeholder="25.033964, 121.564468&#10;25.034500, 121.565000"></textarea>
-            <button class="btn-draw" onclick="processInputCoords()">➕ 繪製基準點與 50m 範圍</button>
             
-            <div class="section-title">👣 3. 路線規劃與模式</div>
-            <div class="help-text">
-                * 【最佳化】：最短距離串連所有點位。<br>
-                * 【掃描】：自動判斷範圍，依設定間隔格柵填滿。
+            <div class="flex-row" style="margin-bottom: 12px;">
+                <button class="btn-draw" style="flex: 2;" onclick="processInputCoords()">➕ 繪製點位</button>
+                <button class="btn-clear-coords" style="flex: 1;" onclick="clearCoordinates()">🗑️ 清空座標</button>
             </div>
             
-            <!-- 新增：可調式掃描間隔欄位 -->
+            <div class="section-title">👣 3. 路線規劃模式</div>
+            <div class="help-text">
+                * <b style="color:#1e88e5;">【步行(15m切邊)】</b>：<br>
+                  (1) &lt;100m 公園區：直線切邊穿越。<br>
+                  (2) &gt;100m 道路區：沿路走，碰到 15m 就換點。
+            </div>
+            
+            <button class="btn-road" id="btnRoadMode" onclick="generateSmartEdgeRoute()">🚶 步行模式 (15m切邊 + 公園直穿)</button>
+            
+            <div class="flex-row">
+                <button class="btn-optimize" onclick="generateOptimizedRoute()">✨ 無重疊(中心)</button>
+                <button class="btn-scan" onclick="generateScanRoute()">🎯 掃描</button>
+            </div>
+
             <div class="setting-box">
                 <label for="scanIntervalInput">📏 掃描間隔 (公尺):</label>
                 <input type="number" id="scanIntervalInput" value="30" min="5" step="5">
             </div>
-
-            <!-- 按鈕並列以節省手機空間 -->
-            <div class="flex-row">
-                <button class="btn-optimize" onclick="generateOptimizedRoute()">✨ 最佳化路徑</button>
-                <button class="btn-scan" onclick="generateScanRoute()">🎯 掃描 (依設定)</button>
-            </div>
-            <div class="flex-row">
-                <button class="btn-undo" onclick="undoAction()">⏪ 復原動作</button>
+            
+            <div class="flex-row" style="margin-top:10px;">
+                <button class="btn-undo" onclick="undoAction()">⏪ 復原</button>
                 <button class="btn-cancel-route" onclick="clearRouteOnly()">❌ 清除路線</button>
             </div>
             
@@ -272,17 +211,17 @@
             <div class="section-title">🛠️ 4. 地圖工具</div>
             <button id="s2ToggleBtn" class="btn-toggle" onclick="toggleS2Grid()">🌐 網格：S2 Cell (Lv.17) [關閉中]</button>
             <button class="btn-export" onclick="exportGPX()">📤 下載路線檔案 (GPX)</button>
-            <button class="btn-clear-all" onclick="clearMapWithConfirm()">🗑️ 清除地圖所有資料</button>
+            <button class="btn-clear-all" onclick="clearMapWithConfirm()">🗑️ 清除地圖資料</button>
         </div>
 
-        <!-- 地圖區塊 -->
         <div id="map">
             <!-- 地圖懸浮快捷按鈕 (FABs) -->
             <div class="map-fabs" id="mapFabsContainer">
-                <button class="fab fab-opt" id="btnFabOpt" title="最佳化路徑">✨</button>
-                <button class="fab fab-scan" id="btnFabScan" title="掃描模式 (自訂間隔)">🎯</button>
-                <button class="fab fab-undo" id="btnFabUndo" title="復原上一步">⏪</button>
-                <button class="fab fab-clear" id="btnFabClear" title="取消路線">❌</button>
+                <button class="fab fab-road" id="btnFabRoad" title="步行模式 (15m切邊)">🚶</button>
+                <button class="fab fab-opt" id="btnFabOpt" title="無重疊中心連線">✨</button>
+                <button class="fab fab-scan" id="btnFabScan" title="掃描模式">🎯</button>
+                <button class="fab fab-undo" id="btnFabUndo" title="復原">⏪</button>
+                <button class="fab fab-clear" id="btnFabClear" title="清除路線">❌</button>
             </div>
         </div>
     </div>
@@ -291,28 +230,30 @@
     <div class="modal-overlay" id="helpModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>📖 使用說明</h2>
+                <h2>📖 皮克敏最強路線工具</h2>
                 <button class="close-modal" onclick="closeModal()">×</button>
             </div>
             <ul class="tutorial-list">
-                <li><b>📱 選單開關：</b>點擊左上角「☰」可自由收合選單，手機操作不卡卡！</li>
-                <li><b>🎯 種花範圍：</b>在欄位 2 輸入座標，地圖即會繪製 50m 種花範圍。</li>
-                <li><b>✨ 最佳化路線：</b>系統自動將全部點位，運算出一條不重疊、耗時最短的連線路徑。</li>
-                <li><b class="highlight">🎯 掃描模式 (新)：</b>在範圍內自動產出Ｓ型格柵路線，系統會尋找能「最少折返」的方向自動掃描！可於左側選單自訂掃描間隔（預設 30m）。</li>
-                <li><b>⏪ 復原/取消：</b>畫錯、刪除錯，點擊「⏪」退回上一步；點擊「❌」可一鍵清除畫好的路線。</li>
+                <li><b>🎯 座標與清空：</b>輸入座標後繪製 50m 圓形。可「一鍵清空」重置。</li>
+                <li><b class="highlight">🚶 步行模式 (15m 切邊神技版)：</b><br>
+                    1. <b>防當機：</b>本地瞬間排好絕不交叉的最短順序。<br>
+                    2. <b>15m 觸碰：</b>導航只需碰到 15m 範圍就會前往下個點，若馬路已在 15m 內則順著走不亂繞。<br>
+                    3. <b>公園直穿：</b>當兩點相距小於 100m 時，自動判斷為空曠區，不找馬路直接走直線，距離極致壓縮！</li>
+                <li><b>✨ 無重疊(中心)：</b>走到每朵花正中心，強迫不走回頭路的直線。</li>
+                <li><b>🎯 掃描模式：</b>自動產出格柵Ｓ型路線。</li>
             </ul>
-            <button class="btn-draw" onclick="closeModal()">我瞭解了，開始使用！</button>
+            <button class="btn-draw" onclick="closeModal()">開始使用！</button>
         </div>
     </div>
 
-    <!-- 引入外部 JS 資源 -->
+    <!-- JS 資源 -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
     <script src="https://unpkg.com/s2-geometry@1.2.10/src/s2geometry.js"></script>
 
     <script>
         // ==========================================
-        // 1. UI 與選單控制邏輯
+        // UI 與選單控制
         // ==========================================
         function openModal() { document.getElementById('helpModal').style.display = 'flex'; }
         function closeModal() { document.getElementById('helpModal').style.display = 'none'; }
@@ -323,13 +264,9 @@
         function toggleSidebar(forceOpen) {
             const isMobile = window.innerWidth <= 768;
             if (isMobile) {
-                if (forceOpen === true) {
-                    sidebar.classList.add('open');
-                } else if (forceOpen === false) {
-                    sidebar.classList.remove('open');
-                } else {
-                    sidebar.classList.toggle('open');
-                }
+                if (forceOpen === true) sidebar.classList.add('open');
+                else if (forceOpen === false) sidebar.classList.remove('open');
+                else sidebar.classList.toggle('open');
                 overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
             } else {
                 sidebar.classList.toggle('collapsed');
@@ -347,7 +284,7 @@
         window.onload = function() { openModal(); };
 
         // ==========================================
-        // 2. 地圖初始化
+        // 地圖初始化
         // ==========================================
         const map = L.map('map', {zoomControl: false}).setView([25.033964, 121.564468], 15);
         L.control.zoom({ position: 'topright' }).addTo(map);
@@ -358,13 +295,10 @@
 
         setTimeout(() => { map.invalidateSize(); }, 300);
 
-        // ==========================================
-        // 3. 【防穿透】徹底阻斷 FAB 點擊穿透地圖
-        // ==========================================
+        // 防 FAB 點擊穿透
         const fabContainer = document.getElementById('mapFabsContainer');
         L.DomEvent.disableClickPropagation(fabContainer);
         L.DomEvent.disableScrollPropagation(fabContainer);
-        
         const stopEvents = ['touchstart', 'touchmove', 'touchend', 'mousedown', 'mousemove', 'mouseup', 'click', 'dblclick', 'pointerdown', 'pointerup'];
         stopEvents.forEach(evt => {
             fabContainer.addEventListener(evt, function(e) { e.stopPropagation(); }, { passive: false });
@@ -372,20 +306,19 @@
 
         function bindFabAction(btnId, actionFunc) {
             const btn = document.getElementById(btnId);
-            const handler = (e) => {
-                e.preventDefault(); e.stopPropagation(); actionFunc();
-            };
+            const handler = (e) => { e.preventDefault(); e.stopPropagation(); actionFunc(); };
             btn.addEventListener('click', handler);
             btn.addEventListener('touchend', handler);
         }
 
+        bindFabAction('btnFabRoad', generateSmartEdgeRoute);
         bindFabAction('btnFabOpt', generateOptimizedRoute);
         bindFabAction('btnFabScan', generateScanRoute);
         bindFabAction('btnFabUndo', undoAction);
         bindFabAction('btnFabClear', clearRouteOnly);
 
         // ==========================================
-        // 系統變數與圖層
+        // 系統變數
         // ==========================================
         let inputPoints = []; 
         let historyStack = []; 
@@ -397,7 +330,7 @@
         document.getElementById('gpxFileInput').addEventListener('change', loadGPXIntoTextarea);
 
         // ==========================================
-        // 4. 復原系統 (Undo)
+        // 復原系統 (Undo)
         // ==========================================
         function saveHistoryState() {
             let currentLatLngs = pathLine.getLatLngs().map(latlng => L.latLng(latlng.lat, latlng.lng));
@@ -414,7 +347,7 @@
         }
 
         // ==========================================
-        // 5. 路徑互動與距離計算
+        // 路徑互動與距離計算
         // ==========================================
         function enablePathEditing() {
             pathLine.pm.disable(); 
@@ -458,24 +391,39 @@
         }
 
         // ==========================================
-        // 6-A. 最佳化演算法 (最短不重疊路徑)
+        // 幾何運算輔助 (角度與座標)
         // ==========================================
-        function generateOptimizedRoute() {
-            let allPointsToOptimize = getMergedPoints();
-            if (allPointsToOptimize.length < 2) {
-                alert("需要至少 2 個點位 (基準點或手繪點) 才能產生最佳化路線。"); return;
-            }
-            saveHistoryState(); 
+        function getAngle(p1, p2) {
+            const dLat = p2.lat - p1.lat;
+            const dLng = (p2.lng - p1.lng) * Math.cos(p1.lat * Math.PI / 180);
+            return Math.atan2(dLat, dLng);
+        }
 
+        function polarToLatLng(center, rMeters, angleRad) {
+            const R = 6378137;
+            const dLat = (rMeters * Math.sin(angleRad)) / R * (180 / Math.PI);
+            const dLng = (rMeters * Math.cos(angleRad)) / (R * Math.cos(center.lat * Math.PI / 180)) * (180 / Math.PI);
+            return [center.lat + dLat, center.lng + dLng];
+        }
+
+        // 計算距離中心 R 公尺的切邊座標
+        function getEdgePoint(center, target, radius) {
+            let d = map.distance(center, target);
+            if (d <= radius) return center; 
+            let angle = getAngle(center, target);
+            let edge = polarToLatLng(center, radius, angle);
+            return { lat: edge[0], lng: edge[1] };
+        }
+
+        // 本地 TSP 近似演算法 (瞬間完成，保證不當機)
+        function getOptimizedSequence(pointsArray) {
             let bestPath = [];
             let minTotalDist = Infinity;
-            
-            for (let startIdx = 0; startIdx < allPointsToOptimize.length; startIdx++) {
-                let unvisited = [...allPointsToOptimize];
+            for (let startIdx = 0; startIdx < pointsArray.length; startIdx++) {
+                let unvisited = [...pointsArray];
                 let current = unvisited.splice(startIdx, 1)[0];
                 let path = [current];
                 let totalDist = 0;
-                
                 while (unvisited.length > 0) {
                     let nearestIdx = -1, minDist = Infinity;
                     for (let i = 0; i < unvisited.length; i++) {
@@ -488,7 +436,6 @@
                 }
                 if (totalDist < minTotalDist) { minTotalDist = totalDist; bestPath = path; }
             }
-
             let improved = true; let iterations = 0; const MAX_ITERATIONS = 50; 
             while (improved && iterations < MAX_ITERATIONS) {
                 improved = false; iterations++;
@@ -498,7 +445,6 @@
                                  map.distance([bestPath[j].lat, bestPath[j].lng], [bestPath[j+1].lat, bestPath[j+1].lng]);
                         let d2 = map.distance([bestPath[i].lat, bestPath[i].lng], [bestPath[j].lat, bestPath[j].lng]) + 
                                  map.distance([bestPath[i+1].lat, bestPath[i+1].lng], [bestPath[j+1].lat, bestPath[j+1].lng]);
-                        
                         if (d2 < d1 - 0.001) {
                             bestPath = bestPath.slice(0, i + 1).concat(bestPath.slice(i + 1, j + 1).reverse()).concat(bestPath.slice(j + 1));
                             improved = true;
@@ -506,28 +452,138 @@
                     }
                 }
             }
+            return bestPath;
+        }
+
+        // ==========================================
+        // 【核心A】: 🚶 智慧步行模式 (15m切邊 + 100m公園直穿)
+        // ==========================================
+        async function fetchOSRM(p1, p2) {
+            let url = `https://router.project-osrm.org/route/v1/foot/${p1.lng},${p1.lat};${p2.lng},${p2.lat}?geometries=geojson&continue_straight=false`;
+            try {
+                let res = await fetch(url);
+                if (res.ok) {
+                    let data = await res.json();
+                    if (data && data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                        return data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                    }
+                }
+            } catch(e) {
+                console.warn("OSRM 網路請求失敗，該段將降級", e);
+            }
+            return null;
+        }
+
+        async function generateSmartEdgeRoute() {
+            let allPoints = getMergedPoints();
+            if (allPoints.length < 2) { alert("需要至少 2 個點位"); return; }
             
-            pathLine.setLatLngs(bestPath.map(p => [p.lat, p.lng]));
+            const btn = document.getElementById('btnRoadMode');
+            const origText = btn.innerHTML;
+            btn.innerHTML = "⏳ 智慧路徑運算中..."; btn.disabled = true;
+
+            try {
+                // 1. 本地瞬間排序，絕對不當機
+                let orderedPts = getOptimizedSequence(allPoints);
+                let finalPath = [];
+
+                for (let i = 0; i < orderedPts.length - 1; i++) {
+                    let p1 = orderedPts[i];
+                    let p2 = orderedPts[i+1];
+                    let routeCoords = [];
+                    let isStraight = false;
+
+                    // 2. 判斷是否為公園空曠區 (< 100m)
+                    if (map.distance(p1, p2) < 100) {
+                        isStraight = true;
+                    } else {
+                        // 3. 呼叫真實步道路徑 (加入安全緩衝防擋)
+                        let res = await fetchOSRM(p1, p2);
+                        if (res && res.length >= 2) {
+                            routeCoords = res;
+                        } else {
+                            isStraight = true; // API 若沒路則降級直線
+                        }
+                        await new Promise(r => setTimeout(r, 300));
+                    }
+
+                    // 4. 執行 15m 切邊邏輯
+                    if (isStraight) {
+                        if (map.distance(p1, p2) <= 30) {
+                            // 兩點過近，直接碰觸中心點避免折返線交錯
+                            let mid = { lat: (p1.lat + p2.lat)/2, lng: (p1.lng + p2.lng)/2 };
+                            routeCoords = [[mid.lat, mid.lng]];
+                        } else {
+                            // 公園邊緣對邊緣直穿
+                            let e1 = getEdgePoint(p1, p2, 15);
+                            let e2 = getEdgePoint(p2, p1, 15);
+                            routeCoords = [[e1.lat, e1.lng], [e2.lat, e2.lng]];
+                        }
+                    } else {
+                        // 道路模式：判斷 OSRM 頭尾是否超過 15m
+                        let rStart = { lat: routeCoords[0][0], lng: routeCoords[0][1] };
+                        let rEnd = { lat: routeCoords[routeCoords.length-1][0], lng: routeCoords[routeCoords.length-1][1] };
+                        
+                        if (map.distance(p1, rStart) > 15) {
+                            let e1 = getEdgePoint(p1, rStart, 15);
+                            routeCoords.unshift([e1.lat, e1.lng]);
+                        }
+                        if (map.distance(p2, rEnd) > 15) {
+                            let e2 = getEdgePoint(p2, rEnd, 15);
+                            routeCoords.push([e2.lat, e2.lng]);
+                        }
+                        // 備解：若路本來就在 15m 內，系統就會完美順著原本的馬路走，不多畫線！
+                    }
+
+                    // 避免相鄰段的重複座標點
+                    if (finalPath.length > 0 && routeCoords.length > 0) {
+                        let lastFp = finalPath[finalPath.length - 1];
+                        let firstRc = routeCoords[0];
+                        if (map.distance({lat: lastFp[0], lng: lastFp[1]}, {lat: firstRc[0], lng: firstRc[1]}) < 2) {
+                            routeCoords.shift();
+                        }
+                    }
+                    finalPath.push(...routeCoords);
+                }
+                
+                saveHistoryState();
+                pathLine.setLatLngs(finalPath);
+                enablePathEditing();
+                if (window.innerWidth <= 768) toggleSidebar(false);
+
+            } catch (err) {
+                alert("運算發生異常，請檢查網路連線。"); 
+                console.error(err);
+            } finally {
+                btn.innerHTML = origText; btn.disabled = false;
+            }
+        }
+
+        // ==========================================
+        // 【核心B】: 無重疊最佳化 (中心點連線)
+        // ==========================================
+        function generateOptimizedRoute() {
+            let allPoints = getMergedPoints();
+            if (allPoints.length < 2) { alert("需要至少 2 個點位"); return; }
+            saveHistoryState(); 
+            let bestSeq = getOptimizedSequence(allPoints);
+            pathLine.setLatLngs(bestSeq.map(p => [p.lat, p.lng]));
             enablePathEditing();
             if(window.innerWidth <= 768) toggleSidebar(false);
         }
 
         // ==========================================
-        // 6-B. 掃描演算法 (凸包計算 + 自訂格柵 + 最少折返)
+        // 【核心C】: 掃描演算法
         // ==========================================
         function generateScanRoute() {
             let allPoints = getMergedPoints();
-            if (allPoints.length < 3) {
-                alert("掃描模式需要至少 3 個點位，系統才能判斷「範圍多邊形」！\n請在地圖上多點幾個點，或輸入更多基準座標。"); return;
-            }
+            if (allPoints.length < 3) { alert("掃描模式需要至少 3 個點位來構成邊界。"); return; }
 
-            // 取得使用者設定的間隔距離 (若輸入無效則預設使用 30)
             let userSpacing = parseFloat(document.getElementById('scanIntervalInput').value);
             let spacing = (isNaN(userSpacing) || userSpacing <= 0) ? 30 : userSpacing;
 
-            // 1. 座標局部投影 (轉為 2D 平面公尺計算)
             let meanLat = allPoints.reduce((s, p) => s + p.lat, 0) / allPoints.length;
-            const R = 6378137; // 地球半徑
+            const R = 6378137; 
             const toX = (lng) => lng * Math.PI / 180 * R * Math.cos(meanLat * Math.PI / 180);
             const toY = (lat) => lat * Math.PI / 180 * R;
             const toLng = (x) => x * 180 / (Math.PI * R * Math.cos(meanLat * Math.PI / 180));
@@ -535,7 +591,6 @@
 
             let pts = allPoints.map(p => ({ x: toX(p.lng), y: toY(p.lat) }));
 
-            // 2. 凸包演算法 (Monotone Chain Convex Hull) - 將散落的點包成邊界
             pts.sort((a, b) => a.x === b.x ? a.y - b.y : a.x - b.x);
             const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
             let lower = [];
@@ -551,9 +606,7 @@
             lower.pop(); upper.pop();
             let hull = lower.concat(upper);
 
-            // 3. 尋找最佳掃描角度 (使垂直於掃描線的「範圍寬度」最小，折返最少)
-            let minHeight = Infinity;
-            let optAngle = 0;
+            let minHeight = Infinity, optAngle = 0;
             for (let i = 0; i < hull.length; i++) {
                 let p1 = hull[i], p2 = hull[(i + 1) % hull.length];
                 let angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
@@ -563,13 +616,9 @@
                     if (ry < min_y) min_y = ry;
                     if (ry > max_y) max_y = ry;
                 }
-                if (max_y - min_y < minHeight) {
-                    minHeight = max_y - min_y;
-                    optAngle = angle;
-                }
+                if (max_y - min_y < minHeight) { minHeight = max_y - min_y; optAngle = angle; }
             }
 
-            // 4. 以最佳角度旋轉座標並依據自訂間隔生成格柵
             let rotatedHull = hull.map(p => ({
                 x: p.x * Math.cos(-optAngle) - p.y * Math.sin(-optAngle),
                 y: p.x * Math.sin(-optAngle) + p.y * Math.cos(-optAngle)
@@ -579,8 +628,7 @@
             let maxY = Math.max(...rotatedHull.map(p => p.y));
             
             let scanPath = [];
-            let startY = minY + (spacing / 2); // 置中偏移
-            
+            let startY = minY + (spacing / 2); 
             let leftToRight = true;
             for (let y = startY; y <= maxY; y += spacing) {
                 let intersects = [];
@@ -600,7 +648,6 @@
                 }
             }
             
-            // 5. 轉回原角度與 Lat/Lng 座標
             let finalLatLngs = scanPath.map(p => {
                 let origX = p.x * Math.cos(optAngle) - p.y * Math.sin(optAngle);
                 let origY = p.x * Math.sin(optAngle) + p.y * Math.cos(optAngle);
@@ -614,7 +661,7 @@
         }
 
         // ==========================================
-        // 清除路線
+        // 清除路線與座標
         // ==========================================
         function clearRouteOnly() {
             if (pathLine.getLatLngs().length === 0) return;
@@ -624,36 +671,34 @@
             updateDistanceDisplay();
         }
 
+        function clearCoordinates() {
+            document.getElementById('coordsInput').value = '';
+            inputPoints = [];
+            inputLayerGroup.clearLayers();
+        }
+
         // ==========================================
-        // 7. 基準點輸入邏輯 (只展示 50m 圓)
+        // 基準點輸入與檔案存取
         // ==========================================
         function processInputCoords() {
             const text = document.getElementById('coordsInput').value;
             if (!text.trim()) { alert("請先輸入座標！"); return; }
 
             const lines = text.split('\n');
-            let addedCount = 0;
-            let bounds = [];
+            let addedCount = 0; let bounds = [];
 
-            inputLayerGroup.clearLayers();
-            inputPoints = [];
+            inputLayerGroup.clearLayers(); inputPoints = [];
 
             lines.forEach(line => {
                 const parts = line.replace('，', ',').split(',');
                 if(parts.length >= 2) {
-                    const lat = parseFloat(parts[0].trim());
-                    const lng = parseFloat(parts[1].trim());
+                    const lat = parseFloat(parts[0].trim()), lng = parseFloat(parts[1].trim());
                     if(!isNaN(lat) && !isNaN(lng)) {
                         inputPoints.push({lat: lat, lng: lng});
                         const latlng = [lat, lng];
-                        
                         L.marker(latlng).bindPopup(`基準點<br>${lat.toFixed(5)}, ${lng.toFixed(5)}`).addTo(inputLayerGroup);
-                        L.circle(latlng, {
-                            color: '#4CAF50', fillColor: '#4CAF50', fillOpacity: 0.2, weight: 2, radius: 50 
-                        }).addTo(inputLayerGroup);
-
-                        bounds.push(latlng);
-                        addedCount++;
+                        L.circle(latlng, { color: '#4CAF50', fillColor: '#4CAF50', fillOpacity: 0.2, weight: 2, radius: 50 }).addTo(inputLayerGroup);
+                        bounds.push(latlng); addedCount++;
                     }
                 }
             });
@@ -661,88 +706,61 @@
             if (addedCount > 0) {
                 map.fitBounds(bounds, { padding: [50, 50] }); 
                 if(window.innerWidth <= 768) toggleSidebar(false);
-            } else {
-                alert("無法解析座標，請確認格式是否正確。");
-            }
+            } else { alert("無法解析座標，請確認格式。"); }
         }
 
-        // ==========================================
-        // 8. GPX 讀取與匯出
-        // ==========================================
         function loadGPXIntoTextarea(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(evt) {
                 try {
                     const xmlDoc = new DOMParser().parseFromString(evt.target.result, "text/xml");
                     const wpts = xmlDoc.getElementsByTagName("wpt");
-                    if (wpts.length === 0) { alert("找不到有效的 <wpt> 資料。"); return; }
-                    
+                    if (wpts.length === 0) { alert("找不到 <wpt> 資料。"); return; }
                     let coordsText = "";
                     for (let i = 0; i < wpts.length; i++) {
-                        const lat = parseFloat(wpts[i].getAttribute("lat"));
-                        const lon = parseFloat(wpts[i].getAttribute("lon"));
+                        const lat = parseFloat(wpts[i].getAttribute("lat")), lon = parseFloat(wpts[i].getAttribute("lon"));
                         if (!isNaN(lat) && !isNaN(lon)) coordsText += `${lat.toFixed(6)}, ${lon.toFixed(6)}\n`;
                     }
-                    
                     document.getElementById('coordsInput').value = coordsText.trim();
                     document.getElementById('fileNameInput').value = file.name.replace(/\.[^/.]+$/, "");
-                    alert(`成功讀取！已提取 ${wpts.length} 個點位。`);
+                    alert(`成功提取 ${wpts.length} 個點位。`);
                 } catch (err) { alert("GPX 檔案解析失敗。"); }
             };
-            reader.readAsText(file);
-            e.target.value = ''; 
+            reader.readAsText(file); e.target.value = ''; 
         }
 
         function exportGPX() {
             let pathLatLngs = pathLine.getLatLngs();
-            if (inputPoints.length === 0 && pathLatLngs.length === 0) {
-                alert("目前地圖上沒有任何資料可以匯出！"); return;
-            }
-
+            if (inputPoints.length === 0 && pathLatLngs.length === 0) { alert("沒有資料可匯出！"); return; }
             let fileName = document.getElementById('fileNameInput').value.trim() || "pikmin_route";
             let gpxContent = '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="PikminPlanner">\n';
-            
             pathLatLngs.forEach((latlng, index) => {
                 gpxContent += `  <wpt lat="${latlng.lat}" lon="${latlng.lng}">\n    <name>Node ${index + 1}</name>\n  </wpt>\n`;
             });
             gpxContent += '</gpx>';
-
-            const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = fileName + '.gpx';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const url = URL.createObjectURL(new Blob([gpxContent], { type: 'application/gpx+xml' }));
+            const a = document.createElement('a'); a.href = url; a.download = fileName + '.gpx';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
         }
 
         // ==========================================
-        // 9. S2 Cell 網格 (Level 17)
+        // S2 Cell 網格 (Lv.17)
         // ==========================================
         function toggleS2Grid() {
-            showS2 = !showS2;
-            const btn = document.getElementById('s2ToggleBtn');
-            if (showS2) {
-                btn.classList.add('active'); btn.innerText = "🌐 網格：S2 Cell (Lv.17) [開啟中]"; drawS2Grid();
-            } else {
-                btn.classList.remove('active'); btn.innerText = "🌐 網格：S2 Cell (Lv.17) [關閉中]"; s2Layer.clearLayers();
-            }
+            showS2 = !showS2; const btn = document.getElementById('s2ToggleBtn');
+            if (showS2) { btn.classList.add('active'); btn.innerText = "🌐 網格：S2 Cell (Lv.17) [開啟中]"; drawS2Grid(); } 
+            else { btn.classList.remove('active'); btn.innerText = "🌐 網格：S2 Cell (Lv.17) [關閉中]"; s2Layer.clearLayers(); }
         }
 
         map.on('moveend', () => { if (showS2) drawS2Grid(); });
 
         function drawS2Grid() {
-            s2Layer.clearLayers();
-            if (map.getZoom() < 15) return; 
-
+            s2Layer.clearLayers(); if (map.getZoom() < 15) return; 
             const bounds = map.getBounds();
-            const stepLat = (bounds.getNorth() - bounds.getSouth()) / 20;
-            const stepLng = (bounds.getEast() - bounds.getWest()) / 20;
+            const stepLat = (bounds.getNorth() - bounds.getSouth()) / 20, stepLng = (bounds.getEast() - bounds.getWest()) / 20;
             const drawnCells = new Set();
-
             if (typeof S2 === 'undefined') return;
-
             for (let lat = bounds.getSouth(); lat <= bounds.getNorth(); lat += stepLat) {
                 for (let lng = bounds.getWest(); lng <= bounds.getEast(); lng += stepLng) {
                     try {
@@ -750,8 +768,7 @@
                         if (!drawnCells.has(key)) {
                             drawnCells.add(key);
                             const corners = S2.S2Cell.FromHilbertQuadKey(key).getCornerLatLngs();
-                            const latlngs = corners.map(c => [c.lat, c.lng]);
-                            L.polygon(latlngs, { color: '#1e88e5', weight: 1.5, fillOpacity: 0.02, dashArray: '5, 5' }).addTo(s2Layer);
+                            L.polygon(corners.map(c => [c.lat, c.lng]), { color: '#1e88e5', weight: 1.5, fillOpacity: 0.02, dashArray: '5, 5' }).addTo(s2Layer);
                         }
                     } catch (e) { }
                 }
@@ -759,14 +776,9 @@
         }
 
         function clearMapWithConfirm() {
-            if(!confirm("確定要清除地圖上的「所有基準點與路線」嗎？")) return;
-            saveHistoryState(); 
-            inputPoints = [];
-            document.getElementById('coordsInput').value = '';
-            inputLayerGroup.clearLayers();
-            pathLine.setLatLngs([]);
-            pathLine.pm.disable(); 
-            updateDistanceDisplay(); 
+            if(!confirm("確定要清除所有基準點與路線嗎？")) return;
+            saveHistoryState(); inputPoints = []; document.getElementById('coordsInput').value = '';
+            inputLayerGroup.clearLayers(); pathLine.setLatLngs([]); pathLine.pm.disable(); updateDistanceDisplay(); 
         }
     </script>
 </body>
