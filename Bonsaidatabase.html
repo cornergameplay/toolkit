@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>純點掃盆座標資料庫</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .max-w-1200 { max-width: 1200px; margin: 0 auto; }
+    .table-responsive { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 15px; }
+    .coords-cell { font-size: 0.9em; background-color: #f8f9fa; padding: 5px 10px; border-radius: 4px; border: 1px solid #eee; display: inline-block;}
+    
+    /* 響應式：手機版轉為無標題的卡片風格 */
+    @media (max-width: 768px) {
+      thead { display: none; }
+      tbody, tr, td { display: block; width: 100%; }
+      tr { margin-bottom: 15px; border: 1px solid #dee2e6; border-radius: 10px; padding: 15px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+      td { text-align: left; padding: 4px 0; border: none; position: relative; font-size: 1rem; color: #495057; }
+      
+      /* 第一欄 (種類) 作為卡片大標題 */
+      td:nth-child(1) { font-size: 1.25rem; font-weight: bold; color: #212529; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px; }
+      /* 座標範圍區塊稍微增加間距 */
+      td:nth-child(4) { margin-top: 4px; }
+      /* 最後一欄 (操作按鈕) 靠右並加上頂部分隔線 */
+      td:last-child { text-align: right; border-top: 1px solid #eee; padding-top: 12px; margin-top: 8px; }
+      
+      /* 移除原本的 ::before 標題生成，讓畫面更乾淨 */
+      td::before { display: none; }
+    }
+    
+    #loading { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1055; background: rgba(255,255,255,0.9); padding: 20px 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div class="container-fluid max-w-1200">
+    <h3 class="mb-4 text-secondary">📍 掃盆座標資料庫</h3>
+    
+    <!-- 操作區 -->
+    <div class="row mb-3">
+      <div class="col-md-6 mb-2">
+        <input type="text" id="searchInput" class="form-control" placeholder="🔍 搜尋種類、國家或城市..." onkeyup="filterData()">
+      </div>
+      <div class="col-md-6 text-md-end text-start">
+        <button class="btn btn-outline-secondary me-2" onclick="sortData()">↕️ 依種類排序</button>
+        <button class="btn btn-primary" onclick="openModal()">➕ 新增資料</button>
+      </div>
+    </div>
+
+    <!-- 資料呈現區 -->
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th width="15%">種類</th>
+            <th width="15%">國家</th>
+            <th width="15%">城市</th>
+            <th width="35%">座標範圍</th>
+            <th width="20%" class="text-center">操作</th>
+          </tr>
+        </thead>
+        <tbody id="dataTable">
+          <!-- 資料由 JS 動態生成 -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 新增/修改 Modal -->
+  <div class="modal fade" id="dataModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTitle">新增資料</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="recordId">
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold">座標範圍 (每行一組：緯度,經度)</label>
+            <textarea id="coordsInput" class="form-control" rows="4" placeholder="例如：&#10;25.0339,121.5644&#10;25.0340,121.5645"></textarea>
+          </div>
+          <div class="mb-3 text-end">
+            <button type="button" class="btn btn-sm btn-info text-white" onclick="autoDetectLocation()">🌍 依首組座標自動判定</button>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">種類</label>
+            <input type="text" id="typeInput" class="form-control" placeholder="自填種類">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">國家 (繁體中文)</label>
+            <input type="text" id="countryInput" class="form-control" placeholder="自動帶入或手動修改">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">城市 (英文)</label>
+            <input type="text" id="cityInput" class="form-control" placeholder="自動帶入或手動修改">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-success" onclick="saveData()">儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading">⏳ 處理中，請稍候...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycby21f9qGFD03NU7T7h6lORHmTnYbpBdIIpaetpt9RKSf4GkQ23gzIP6ecogQeWDH7Le/exec'; 
+    
+    let currentData = [];
+    let sortAsc = true;
+    let modal;
+
+    window.onload = function() {
+      modal = new bootstrap.Modal(document.getElementById('dataModal'));
+      loadData();
+    };
+
+    function showLoading(show) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+    }
+
+    // 讀取資料 (GET)
+    async function loadData() {
+      showLoading(true);
+      try {
+        const response = await fetch(API_URL);
+        currentData = await response.json();
+        renderTable(currentData);
+      } catch (error) {
+        console.error('讀取資料失敗:', error);
+        alert('無法連接到資料庫，請檢查 API 網址是否正確。');
+      }
+      showLoading(false);
+    }
+
+    // 渲染表格
+    function renderTable(data) {
+      const tbody = document.getElementById('dataTable');
+      tbody.innerHTML = '';
+      data.forEach(row => {
+        // 過濾掉空行，僅顯示第一組，並加上總數提示
+        const coordsArray = row.coordinates.split('\n').filter(c => c.trim() !== '');
+        const firstCoord = coordsArray.length > 0 ? coordsArray[0] : '';
+        const countBadge = coordsArray.length > 1 ? `<span class="badge bg-secondary ms-2">共 ${coordsArray.length} 組</span>` : '';
+        const displayCoords = `${firstCoord} ${countBadge}`;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td data-label="種類">${row.type}</td>
+          <td data-label="國家">${row.country}</td>
+          <td data-label="城市">${row.city}</td>
+          <td data-label="座標範圍"><div class="coords-cell">${displayCoords}</div></td>
+          <td data-label="操作" class="text-md-center">
+            <button class="btn btn-sm btn-outline-primary mb-1 me-1" onclick="copyCoords('${row.id}')" title="複製完整座標清單">📋 複製全部</button>
+            <button class="btn btn-sm btn-outline-secondary mb-1 me-1" onclick="editData('${row.id}')">✏️ 修改</button>
+            <button class="btn btn-sm btn-outline-danger mb-1" onclick="deleteData('${row.id}')">🗑️</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 搜尋與過濾
+    function filterData() {
+      const keyword = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = currentData.filter(row => 
+        row.type.toLowerCase().includes(keyword) || 
+        row.country.toLowerCase().includes(keyword) || 
+        row.city.toLowerCase().includes(keyword)
+      );
+      renderTable(filtered);
+    }
+
+    // 排序
+    function sortData() {
+      sortAsc = !sortAsc;
+      currentData.sort((a, b) => {
+        return sortAsc ? a.type.localeCompare(b.type) : b.type.localeCompare(a.type);
+      });
+      filterData();
+    }
+
+    // 一鍵複製所有座標
+    function copyCoords(id) {
+      const row = currentData.find(r => r.id === id);
+      if (row) {
+        navigator.clipboard.writeText(row.coordinates).then(() => {
+          alert('✅ 該筆資料所有座標已複製到剪貼簿！');
+        }).catch(err => {
+          alert('複製失敗，請手動選取複製。');
+        });
+      }
+    }
+
+    // 開啟 Modal
+    function openModal(id = null) {
+      if (id) {
+        const row = currentData.find(r => r.id === id);
+        document.getElementById('modalTitle').innerText = '修改資料';
+        document.getElementById('recordId').value = row.id;
+        document.getElementById('typeInput').value = row.type;
+        document.getElementById('countryInput').value = row.country;
+        document.getElementById('cityInput').value = row.city;
+        document.getElementById('coordsInput').value = row.coordinates;
+      } else {
+        document.getElementById('modalTitle').innerText = '新增資料';
+        document.getElementById('recordId').value = '';
+        document.getElementById('typeInput').value = '';
+        document.getElementById('countryInput').value = '';
+        document.getElementById('cityInput').value = '';
+        document.getElementById('coordsInput').value = '';
+      }
+      modal.show();
+    }
+    
+    function editData(id) { openModal(id); }
+
+    // 儲存資料 (POST)
+    async function saveData() {
+      const record = {
+        id: document.getElementById('recordId').value,
+        type: document.getElementById('typeInput').value,
+        country: document.getElementById('countryInput').value,
+        city: document.getElementById('cityInput').value,
+        coordinates: document.getElementById('coordsInput').value
+      };
+      
+      if (!record.coordinates || !record.type) {
+        alert('請至少輸入「種類」與「座標」！');
+        return;
+      }
+
+      showLoading(true);
+      modal.hide();
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'save', record: record })
+        });
+        const result = await response.json();
+        if (result.success) {
+          await loadData(); 
+        } else {
+          alert('儲存失敗：' + result.message);
+        }
+      } catch (error) {
+        console.error('儲存發生錯誤:', error);
+        alert('儲存發生錯誤，請查看 Console日誌。');
+      }
+      showLoading(false);
+    }
+
+    // 刪除資料 (POST)
+    async function deleteData(id) {
+      if(confirm('確定要刪除這筆資料嗎？無法復原喔！')) {
+        showLoading(true);
+        try {
+          const response = await fetch(API_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'delete', id: id })
+          });
+          const result = await response.json();
+          if (result.success) {
+            await loadData();
+          }
+        } catch (error) {
+          alert('刪除發生錯誤。');
+        }
+        showLoading(false);
+      }
+    }
+
+    // 自動判定國家(繁中)與城市(英文)
+    async function autoDetectLocation() {
+      const coordsText = document.getElementById('coordsInput').value.trim();
+      if (!coordsText) {
+        alert('請先輸入座標！');
+        return;
+      }
+      
+      const firstLine = coordsText.split('\n')[0].trim();
+      const parts = firstLine.split(',');
+      if (parts.length < 2) {
+        alert('座標格式錯誤，請確認為「緯度,經度」');
+        return;
+      }
+      
+      const lat = parts[0].trim();
+      const lon = parts[1].trim();
+      
+      document.getElementById('countryInput').value = '查詢中...';
+      document.getElementById('cityInput').value = '查詢中...';
+
+      try {
+        const resTw = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&accept-language=zh-TW`);
+        const dataTw = await resTw.json();
+        const country = dataTw.address ? dataTw.address.country : '';
+
+        const resEn = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&accept-language=en`);
+        const dataEn = await resEn.json();
+        let city = '';
+        if (dataEn.address) {
+          city = dataEn.address.city || dataEn.address.town || dataEn.address.state || dataEn.address.county || '';
+        }
+
+        document.getElementById('countryInput').value = country || '無法判定';
+        document.getElementById('cityInput').value = city || '無法判定';
+        
+      } catch (error) {
+        console.error('Nominatim API Error:', error);
+        alert('地圖 API 查詢失敗，請稍後再試或手動輸入。');
+        document.getElementById('countryInput').value = '';
+        document.getElementById('cityInput').value = '';
+      }
+    }
+  </script>
+</body>
+</html>
