@@ -2,19 +2,20 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>純點掃盆座標資料庫</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body { background-color: #f8f9fa; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     .max-w-1200 { max-width: 1200px; margin: 0 auto; }
     .table-responsive { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 15px; }
-    .coords-cell { font-size: 0.9em; background-color: #f8f9fa; padding: 5px 10px; border-radius: 4px; border: 1px solid #eee; display: inline-block;}
+    .coords-cell { font-size: 0.9em; background-color: #f8f9fa; padding: 5px 10px; border-radius: 4px; border: 1px solid #eee; display: inline-block; word-break: break-all;}
     
     /* 響應式：手機版轉為無標題的卡片風格 */
     @media (max-width: 768px) {
-      thead { display: none; }
-      tbody, tr, td { display: block; width: 100%; }
+      /* 取消表格的橫向滾動，避免吃掉手機觸控點擊事件 */
+      .table-responsive { overflow-x: visible !important; padding: 10px; background: transparent; box-shadow: none; }
+      table, thead, tbody, th, td, tr { display: block; width: 100%; }
       tr { margin-bottom: 15px; border: 1px solid #dee2e6; border-radius: 10px; padding: 15px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
       td { text-align: left; padding: 4px 0; border: none; position: relative; font-size: 1rem; color: #495057; }
       
@@ -145,7 +146,6 @@
       const tbody = document.getElementById('dataTable');
       tbody.innerHTML = '';
       data.forEach(row => {
-        // 過濾掉空行，僅顯示第一組，並加上總數提示
         const coordsArray = row.coordinates.split('\n').filter(c => c.trim() !== '');
         const firstCoord = coordsArray.length > 0 ? coordsArray[0] : '';
         const countBadge = coordsArray.length > 1 ? `<span class="badge bg-secondary ms-2">共 ${coordsArray.length} 組</span>` : '';
@@ -158,9 +158,9 @@
           <td data-label="城市">${row.city}</td>
           <td data-label="座標範圍"><div class="coords-cell">${displayCoords}</div></td>
           <td data-label="操作" class="text-md-center">
-            <button class="btn btn-sm btn-outline-primary mb-1 me-1" onclick="copyCoords('${row.id}')" title="複製完整座標清單">📋 複製全部</button>
-            <button class="btn btn-sm btn-outline-secondary mb-1 me-1" onclick="editData('${row.id}')">✏️ 修改</button>
-            <button class="btn btn-sm btn-outline-danger mb-1" onclick="deleteData('${row.id}')">🗑️</button>
+            <button type="button" class="btn btn-sm btn-outline-primary mb-1 me-1" onclick="copyCoords('${row.id}')" title="複製完整座標清單">📋 複製全部</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary mb-1 me-1" onclick="editData('${row.id}')">✏️ 修改</button>
+            <button type="button" class="btn btn-sm btn-outline-danger mb-1" onclick="deleteData('${row.id}')">🗑️</button>
           </td>
         `;
         tbody.appendChild(tr);
@@ -189,20 +189,53 @@
 
     // 一鍵複製所有座標
     function copyCoords(id) {
-      const row = currentData.find(r => r.id === id);
+      // 修正低級錯誤：使用 String() 強制轉型，避免 Google試算表將 ID 轉為數值導致尋找失敗
+      const row = currentData.find(r => String(r.id) === String(id));
       if (row) {
-        navigator.clipboard.writeText(row.coordinates).then(() => {
-          alert('✅ 該筆資料所有座標已複製到剪貼簿！');
-        }).catch(err => {
-          alert('複製失敗，請手動選取複製。');
-        });
+        // 針對手機瀏覽器複製 API 的相容處理
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(row.coordinates).then(() => {
+            alert('✅ 該筆資料所有座標已複製到剪貼簿！');
+          }).catch(err => {
+            fallbackCopyTextToClipboard(row.coordinates);
+          });
+        } else {
+          fallbackCopyTextToClipboard(row.coordinates);
+        }
+      } else {
+        alert('發生錯誤：找不到該筆資料');
       }
+    }
+
+    // 備用複製方案 (針對部分不支援 clipboard API 的手機瀏覽器或 Line 內建瀏覽器)
+    function fallbackCopyTextToClipboard(text) {
+      var textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        var successful = document.execCommand('copy');
+        if(successful) {
+          alert('✅ 該筆資料所有座標已複製到剪貼簿！');
+        } else {
+          alert('複製失敗，請手動選取複製。');
+        }
+      } catch (err) {
+        alert('複製失敗，請手動選取複製。');
+      }
+      document.body.removeChild(textArea);
     }
 
     // 開啟 Modal
     function openModal(id = null) {
       if (id) {
-        const row = currentData.find(r => r.id === id);
+        // 修正低級錯誤：使用 String() 強制轉型
+        const row = currentData.find(r => String(r.id) === String(id));
+        if(!row) return;
         document.getElementById('modalTitle').innerText = '修改資料';
         document.getElementById('recordId').value = row.id;
         document.getElementById('typeInput').value = row.type;
