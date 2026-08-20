@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>座標分佈與 GPX 視覺化管理系統 (Pro v6 終極修復版)</title>
+    <title>座標分佈與 GPX 視覺化管理系統 (Pro Max Final)</title>
     
     <!-- 引入 Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -29,20 +29,35 @@
             height: 100vh;
             background-color: #f1f5f9;
         }
+        
+        /* --- 頂部導航與收合按鈕 --- */
         header {
             background: #0f172a;
             color: white;
-            padding: 10px 20px;
+            padding: 10px 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             z-index: 20;
         }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .btn-toggle-sidebar {
+            background: #334155;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-toggle-sidebar:hover { background: #475569; }
         header h1 { font-size: 1.2rem; margin: 0; }
-        .main-container { display: flex; flex: 1; overflow: hidden; }
         
-        /* ================= 左側控制面板 ================= */
+        .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
+        
+        /* ================= 左側控制面板 (支援動態收合) ================= */
         .sidebar {
             width: 490px;
             padding: 15px;
@@ -52,29 +67,22 @@
             display: flex;
             flex-direction: column;
             z-index: 10;
+            transition: all 0.3s ease;
+        }
+        .sidebar.collapsed {
+            width: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            overflow: hidden !important;
+            opacity: 0;
         }
         
-        .top-actions {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-        }
+        .top-actions { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
         .btn {
-            cursor: pointer;
-            border: none;
-            border-radius: 6px;
-            padding: 7px 10px;
-            font-size: 12px;
-            font-weight: bold;
-            color: white;
-            transition: opacity 0.2s;
-            flex: 1 1 45%;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
+            cursor: pointer; border: none; border-radius: 6px;
+            padding: 7px 10px; font-size: 12px; font-weight: bold;
+            color: white; transition: opacity 0.2s;
+            flex: 1 1 45%; text-align: center;
         }
         .btn:hover { opacity: 0.85; }
         .btn-add-folder { background: var(--success); }
@@ -83,221 +91,125 @@
         .btn-download-img { background: var(--purple); }
         
         .section-title {
-            font-size: 14px;
-            font-weight: bold;
-            color: var(--text-dark);
-            margin: 12px 0 8px 0;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            font-size: 14px; font-weight: bold; color: var(--text-dark);
+            margin: 12px 0 8px 0; border-bottom: 2px solid var(--border-color);
+            padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;
         }
 
         .sort-group { display: flex; gap: 2px; }
-        .btn-sort {
-            background: #e2e8f0;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            cursor: pointer;
-            padding: 2px 6px;
-            font-size: 11px;
-        }
-        .btn-sort:hover { background: #cbd5e1; }
-        .btn-del-small {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 3px 7px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-        }
+        .btn-sort { background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; padding: 2px 6px; font-size: 11px; }
+        .btn-del-small { background: var(--danger); color: white; border: none; padding: 3px 7px; border-radius: 4px; cursor: pointer; font-size: 11px; }
 
-        /* --- GPX 區塊樣式 --- */
-        .gpx-item {
-            background: #fffbeb;
-            border: 1px solid #fcd34d;
-            border-radius: 6px;
-            padding: 8px 10px;
-            margin-bottom: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .gpx-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 6px;
-        }
-        .gpx-info {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex: 1;
-        }
-        .input-gpx-id {
-            width: 110px;
-            padding: 3px 6px;
-            border: 1px solid #d97706;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            color: #92400e;
-        }
-        .gpx-filename-box {
-            font-size: 11px;
-            color: #64748b;
-            background: #f1f5f9;
-            padding: 3px 6px;
-            border-radius: 4px;
-            border: 1px dashed #cbd5e1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        /* --- GPX 區塊 --- */
+        .gpx-item { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
+        .gpx-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+        .gpx-info { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+        .input-gpx-id { flex: 1; min-width: 40px; padding: 3px 6px; border: 1px solid #d97706; border-radius: 4px; font-size: 12px; font-weight: bold; color: #92400e; }
+        .gpx-filename-box { font-size: 11px; color: #64748b; background: #f1f5f9; padding: 3px 6px; border-radius: 4px; border: 1px dashed #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* --- 資料夾結構樣式 --- */
-        .folder {
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            margin-bottom: 12px;
-            background: white;
-            overflow: hidden;
-        }
-        .folder-header {
-            background: #e2e8f0;
-            padding: 6px 10px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+        /* --- 資料夾與子編號 --- */
+        .folder { border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 12px; background: white; overflow: hidden; }
+        .folder-header { background: #e2e8f0; padding: 6px 10px; display: flex; align-items: center; gap: 6px; }
         .btn-toggle { background: none; border: none; cursor: pointer; font-size: 13px; width: 18px; }
         .toggle-checkbox { width: 15px; height: 15px; cursor: pointer; margin: 0; }
-        .input-folder-name {
-            flex: 1;
-            padding: 3px 6px;
-            border: 1px solid #94a3b8;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: bold;
-        }
+        .input-folder-name { flex: 1; padding: 3px 6px; border: 1px solid #94a3b8; border-radius: 4px; font-size: 13px; font-weight: bold; }
         .folder-content { padding: 10px; background: var(--gray-bg); display: block; }
         
-        /* --- 子編號結構樣式 --- */
-        .sub-group {
-            background: white;
-            border: 1px dashed #94a3b8;
-            border-radius: 6px;
-            padding: 8px;
-            margin-bottom: 10px;
-        }
-        .sub-group-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-            font-weight: bold;
-            font-size: 12px;
-            color: var(--primary-dark);
-            flex-wrap: wrap;
-            gap: 4px;
-        }
-        .sub-header-left { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-        .input-sub-num {
-            width: 70px;
-            padding: 2px 6px;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 12px;
-            background: #f1f5f9;
-            color: #1e293b;
-            text-align: center;
-            transition: all 0.2s;
-        }
-        .input-sub-num:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-        }
-        .label-custom-switch {
-            font-size: 11px;
-            color: #64748b;
-            display: flex;
-            align-items: center;
-            gap: 3px;
-            cursor: pointer;
-            background: #e2e8f0;
-            padding: 2px 6px;
-            border-radius: 4px;
-            border: 1px solid #cbd5e1;
-            transition: all 0.2s;
-            user-select: none;
-        }
-        .label-custom-switch:hover { background: #cbd5e1; }
-        
-        .textarea-coords {
-            width: 100%;
-            height: 60px;
-            padding: 6px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 11px;
-            resize: vertical;
-            box-sizing: border-box;
-            margin-bottom: 6px;
-        }
+        .sub-group { background: white; border: 1px dashed #94a3b8; border-radius: 6px; padding: 8px; margin-bottom: 10px; }
+        .sub-group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-weight: bold; font-size: 12px; flex-wrap: wrap; gap: 4px; }
+        .sub-header-left { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; flex: 1; min-width: 0; }
+        .input-sub-num { flex: 1; min-width: 40px; max-width: 80px; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-weight: bold; font-size: 12px; background: #f1f5f9; text-align: center; }
+        .label-custom-switch { font-size: 11px; color: #64748b; display: flex; align-items: center; gap: 3px; cursor: pointer; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; }
+        .textarea-coords { width: 100%; height: 60px; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; font-family: monospace; font-size: 11px; resize: vertical; box-sizing: border-box; margin-bottom: 6px; }
         .sub-actions { display: flex; gap: 4px; }
-        .btn-action {
-            background: #64748b;
-            color: white;
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            cursor: pointer;
-            flex: 1;
-        }
+        .btn-action { background: #64748b; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; flex: 1; }
         .btn-export-wpt { background: #0891b2; }
-        .btn-add-sub {
-            background: white;
-            border: 1px dashed var(--primary);
-            color: var(--primary);
-            width: 100%;
-            padding: 6px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        .btn-add-sub:hover { background: #eff6ff; }
+        .btn-add-sub { background: white; border: 1px dashed var(--primary); color: var(--primary); width: 100%; padding: 6px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
 
-        /* ================= 右側地圖與標籤極致校準樣式 ================= */
+        /* ================= 右側主地圖與標籤 ================= */
         #map { flex: 1; background: #e5e7eb; }
-        
         .leaflet-custom-div-icon { background: transparent; border: none; }
         
-        /* 核心修復：完全廢除負邊距！採用 140x28 嚴格對稱盒模型，搭配 Flexbox 垂直水平置中 */
-        .area-label {
-            width: 140px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.95);
-            border: 2px solid;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 13px;
-            color: #000000 !important;
-            white-space: nowrap;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            box-sizing: border-box;
-            user-select: none;
+        /* 核心修復：彈性字體長度 + 絕對置中防偏移 */
+        .label-wrapper {
+            position: absolute; left: -150px; top: -14px;
+            width: 300px; height: 28px;
+            display: flex; justify-content: center; align-items: center;
+            pointer-events: none;
         }
+        .area-label {
+            display: inline-block; /* 字多長框多長 */
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid; border-radius: 4px;
+            padding: 2px 6px; /* 緊貼文字的內邊距 */
+            font-weight: bold; font-size: 13px; color: #000000 !important;
+            white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* ================= 標籤顯示控制選單 (懸浮於地圖右上角) ================= */
+        .leaflet-control-labels {
+            background: white;
+            border: 2px solid rgba(0,0,0,0.2);
+            border-radius: 5px;
+            padding: 5px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+            font-size: 13px;
+            font-family: inherit;
+        }
+        .labels-menu-header {
+            display: flex; align-items: center; gap: 6px;
+            font-weight: bold; color: #334155; cursor: pointer;
+            padding: 4px 8px;
+        }
+        .labels-menu-content {
+            display: none; flex-direction: column; gap: 8px;
+            padding: 10px; border-top: 1px solid #e2e8f0; margin-top: 5px;
+        }
+        /* 讓滑鼠移入或點擊時展開選單 */
+        .leaflet-control-labels:hover .labels-menu-content,
+        .leaflet-control-labels:focus-within .labels-menu-content {
+            display: flex;
+        }
+        .label-toggle-item {
+            display: flex; align-items: center; gap: 6px; cursor: pointer; color: #1e293b;
+        }
+        .label-toggle-item input { cursor: pointer; }
+
+        /* ================= 圖片輸出預覽視窗 (Modal) ================= */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75); z-index: 9999;
+            display: none; justify-content: center; align-items: center;
+            backdrop-filter: blur(3px);
+        }
+        .modal-content {
+            background: white; padding: 20px; border-radius: 12px;
+            width: 95%; max-width: 900px; max-height: 95vh;
+            display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .modal-header h3 { margin: 0; color: var(--text-dark); }
+        
+        .ratio-buttons { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
+        .btn-ratio {
+            background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 6px;
+            padding: 8px 16px; font-weight: bold; color: #475569; cursor: pointer; transition: 0.2s;
+        }
+        .btn-ratio.active { background: #eff6ff; border-color: var(--primary); color: var(--primary-dark); }
+        
+        .preview-wrapper {
+            flex: 1; background: #cbd5e1; border-radius: 8px; display: flex;
+            justify-content: center; align-items: center; overflow: hidden;
+            position: relative; min-height: 40vh; margin-bottom: 15px;
+        }
+        #exportMap {
+            background: #e5e7eb; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        }
+        
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        .btn-cancel { background: #94a3b8; }
+        .btn-confirm { background: var(--primary); font-size: 14px; padding: 10px 20px; }
 
         @media (max-width: 850px) {
             .main-container { flex-direction: column; }
@@ -309,35 +221,61 @@
 <body>
 
 <header>
-    <h1>🗺️ 座標分佈與 GPX 視覺化管理系統</h1>
-    <span style="font-size: 12px; color: #94a3b8;">Pro v6 (終極修復版)</span>
+    <div class="header-left">
+        <!-- 側邊欄收合按鈕 -->
+        <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="收合/展開面板 (將地圖最大化)">☰</button>
+        <h1>🗺️ 座標分佈管理系統</h1>
+    </div>
+    <span style="font-size: 12px; color: #94a3b8;">Pro Max Final</span>
 </header>
 
 <div class="main-container">
-    <div class="sidebar">
-        <!-- 隱藏的檔案上傳器 -->
+    <div class="sidebar" id="sidebarPanel">
         <input type="file" id="gpxUploader" accept=".gpx" multiple style="display: none;" onchange="handleGPXUpload(this)">
 
-        <!-- 頂部按鈕群 -->
         <div class="top-actions">
             <button class="btn btn-add-folder" onclick="addFolder()">+ 新增座標群組</button>
             <button class="btn btn-add-gpx" onclick="document.getElementById('gpxUploader').click()">📁 匯入 GPX</button>
-            <button class="btn btn-refresh" onclick="forceRefreshAndRender()">✨ 整理展示與重繪</button>
-            <button class="btn btn-download-img" id="btnDownloadImg" onclick="downloadMapImage()">📸 下載圖面圖片</button>
+            <button class="btn btn-refresh" onclick="forceRefreshAndRender()">✨ 整理與重繪</button>
+            <!-- 輸出圖面預覽 -->
+            <button class="btn btn-download-img" onclick="openExportModal()">📸 輸出圖面 (預覽微調)</button>
         </div>
         
-        <!-- GPX 管理區 -->
         <div id="gpxSection" style="display: none;">
-            <div class="section-title">📍 GPX 軌跡圖層 <span style="font-size: 11px; font-weight: normal; color: #64748b;">(排序影響圖層上下)</span></div>
+            <div class="section-title">📍 GPX 軌跡圖層</div>
             <div id="gpxWrapper"></div>
         </div>
 
-        <!-- 座標資料夾區 -->
-        <div class="section-title">📂 手動座標分組 <span style="font-size: 11px; font-weight: normal; color: #64748b;">(支援自動排序與手動自訂編號)</span></div>
+        <div class="section-title">📂 手動座標分組</div>
         <div id="foldersWrapper"></div>
     </div>
 
     <div id="map"></div>
+</div>
+
+<!-- ================= 圖片輸出預覽視窗 ================= -->
+<div class="modal-overlay" id="exportModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🖼️ 輸出圖片預覽 (支援拖曳/縮放微調)</h3>
+        </div>
+        
+        <div class="ratio-buttons">
+            <button class="btn-ratio active" onclick="setExportRatio(9, 16, this)">9:16 (直向手機)</button>
+            <button class="btn-ratio" onclick="setExportRatio(16, 9, this)">16:9 (橫向簡報)</button>
+            <button class="btn-ratio" onclick="setExportRatio(3, 4, this)">3:4 (直向一般)</button>
+            <button class="btn-ratio" onclick="setExportRatio(4, 3, this)">4:3 (橫向一般)</button>
+        </div>
+
+        <div class="preview-wrapper" id="previewWrapper">
+            <div id="exportMap"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-cancel" onclick="closeExportModal()">取消</button>
+            <button class="btn btn-confirm" id="btnConfirmExport" onclick="executeExport()">📸 確認下載圖片 (PNG)</button>
+        </div>
+    </div>
 </div>
 
 <!-- 引入 Leaflet、Turf.js 與 Html2Canvas -->
@@ -346,75 +284,289 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-    let map;
-    let mapLayerGroup;
+    let map, mapLayerGroup;
+    let exportMap, exportLayerGroup;
+    let allLatLngsGlobal = []; 
     
     const colors = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#008080', '#e6beff', '#9a6324', '#800000'];
     const gpxColors = ['#FF1493', '#00BFFF', '#FF8C00', '#8A2BE2', '#32CD32', '#FF0000', '#00FFFF'];
-    
     let gpxDataList = [];
 
-    // ================= 初始化 =================
+    // ================= 全局標籤顯示狀態設定 =================
+    const labelConfig = {
+        showGpx: true,
+        showFolder: true,
+        showSubName: true
+    };
+
+    // ================= 初始化主地圖 =================
     function initMap() {
-        // 【關鍵突破 1】：強制使用 HTML5 Canvas 渲染引擎，保證 html2canvas 截圖時「半透明區域區塊」絕對不消失、不跑位！
-        map = L.map('map', { 
-            preserveDrawingBuffer: true,
-            renderer: L.canvas({ padding: 0.5 }) 
-        }).setView([23.6, 121], 7);
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap',
-            crossOrigin: true
-        }).addTo(map);
-        
+        map = L.map('map', { renderer: L.canvas({ padding: 0.5 }) }).setView([23.6, 121], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(map);
         mapLayerGroup = L.layerGroup().addTo(map);
+        
+        // 加入地圖右上角的「懸浮標籤設定選單」
+        addLabelControl();
         addFolder();
     }
 
-    // ================= 整理展示地圖代號與刷新渲染 =================
-    function forceRefreshAndRender() {
-        gpxDataList.forEach((g, i) => {
-            if (!g.customId || !g.customId.trim()) g.customId = `G${String(i + 1).padStart(2, '0')}`;
+    // ================= 建立懸浮標籤控制選單 (右上角) =================
+    function addLabelControl() {
+        L.Control.Labels = L.Control.extend({
+            onAdd: function(map) {
+                const div = L.DomUtil.create('div', 'leaflet-control-labels leaflet-bar');
+                div.innerHTML = `
+                    <div class="labels-menu-header" tabindex="0">
+                        👁️ 標籤顯示設定 ▼
+                    </div>
+                    <div class="labels-menu-content">
+                        <label class="label-toggle-item">
+                            <input type="checkbox" id="toggleGpx" checked onchange="updateLabelConfig()"> 顯示 GPX 代號
+                        </label>
+                        <label class="label-toggle-item">
+                            <input type="checkbox" id="toggleFolder" checked onchange="updateLabelConfig()"> 顯示 群組名稱 (如: 台北)
+                        </label>
+                        <label class="label-toggle-item">
+                            <input type="checkbox" id="toggleSub" checked onchange="updateLabelConfig()"> 顯示 分組編號 (如: A1)
+                        </label>
+                    </div>
+                `;
+                // 阻止點擊選單時觸發地圖拖曳
+                L.DomEvent.disableClickPropagation(div);
+                return div;
+            }
         });
-        updateGPXUI();
-
-        document.querySelectorAll('.sub-groups-container').forEach(container => {
-            updateSubGroupLabels(container);
-        });
-
-        renderMap(false);
-        
-        const btn = document.querySelector('.btn-refresh');
-        const orig = btn.innerHTML;
-        btn.innerHTML = '✅ 已完成整理！';
-        setTimeout(() => btn.innerHTML = orig, 1200);
+        new L.Control.Labels({ position: 'topright' }).addTo(map);
     }
 
-    // ================= GPX 解析與管理 =================
+    // 當懸浮選單的勾選狀態改變時，更新狀態並重繪地圖
+    function updateLabelConfig() {
+        labelConfig.showGpx = document.getElementById('toggleGpx').checked;
+        labelConfig.showFolder = document.getElementById('toggleFolder').checked;
+        labelConfig.showSubName = document.getElementById('toggleSub').checked;
+        renderMap();
+        
+        // 如果預覽視窗開著，連動更新預覽視窗
+        if (exportMap && document.getElementById('exportModal').style.display === 'flex') {
+            drawFeaturesToLayer(exportLayerGroup);
+        }
+    }
+
+    // ================= 側邊欄收合功能 =================
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebarPanel');
+        sidebar.classList.toggle('collapsed');
+        setTimeout(() => { map.invalidateSize(); }, 300); // 動畫結束後重設尺寸
+    }
+
+    // ================= 核心：智慧繪圖與標籤動態組合邏輯 =================
+    function drawFeaturesToLayer(targetLayerGroup) {
+        targetLayerGroup.clearLayers();
+        const allLatLngs = [];
+        
+        // 1. 繪製 GPX
+        gpxDataList.forEach(gpx => {
+            if (!gpx.visible || gpx.points.length === 0) return;
+            gpx.points.forEach(pt => allLatLngs.push(pt));
+            
+            // 【標籤組合邏輯】依據開關決定是否顯示 GPX 代號
+            const displayLabel = labelConfig.showGpx ? (gpx.customId || "未命名GPX") : "";
+
+            const step = Math.ceil(gpx.points.length / 150);
+            for (let i = 0; i < gpx.points.length; i += step) {
+                L.circleMarker(gpx.points[i], { radius: 4, color: gpx.color, fillColor: gpx.color, fillOpacity: 0.8 }).addTo(targetLayerGroup);
+            }
+
+            if (gpx.points.length >= 3) {
+                const turfPointsArray = gpx.points.map(pt => [pt[1], pt[0]]);
+                const turfPoints = turf.featureCollection(turfPointsArray.map(p => turf.point(p)));
+                const hull = turf.convex(turfPoints);
+                if (hull) {
+                    L.geoJSON(hull, { style: { color: gpx.color, weight: 2, fillOpacity: 0.25 } }).addTo(targetLayerGroup);
+                    const centerLonLat = turf.center(hull).geometry.coordinates;
+                    if (displayLabel) addMapLabel(targetLayerGroup, [centerLonLat[1], centerLonLat[0]], displayLabel, gpx.color);
+                }
+            } else if (gpx.points.length === 2) {
+                L.polyline(gpx.points, { color: gpx.color, weight: 3, dashArray: '5, 8' }).addTo(targetLayerGroup);
+                const center = [(gpx.points[0][0]+gpx.points[1][0])/2, (gpx.points[0][1]+gpx.points[1][1])/2];
+                if (displayLabel) addMapLabel(targetLayerGroup, center, displayLabel, gpx.color);
+            } else if (gpx.points.length === 1) {
+                if (displayLabel) addMapLabel(targetLayerGroup, gpx.points[0], displayLabel, gpx.color);
+            }
+        });
+
+        // 2. 繪製手動群組
+        let colorIndex = 0;
+        document.querySelectorAll('.folder').forEach(folder => {
+            const folderName = folder.querySelector('.input-folder-name').value.trim();
+            folder.querySelectorAll('.sub-group').forEach(sg => {
+                if (!sg.querySelector('.sub-checkbox').checked) return; 
+
+                const numStr = sg.querySelector('.input-sub-num').value.trim() || '01';
+                
+                // 【標籤組合邏輯】依據開關決定手動群組標籤的字詞組成
+                let textParts = [];
+                if (labelConfig.showFolder && folderName) textParts.push(folderName);
+                if (labelConfig.showSubName && numStr) textParts.push(numStr);
+                const fullDisplayCode = textParts.join(''); // 例如 "台北" + "A1" = "台北A1"；或只剩 "A1"
+
+                const coordsText = sg.querySelector('.textarea-coords').value.trim();
+                if (!coordsText) return; 
+
+                const validCoords = [];
+                coordsText.split('\n').forEach(line => {
+                    const parts = line.trim().split(/[,，\t\s]+/); 
+                    if (parts.length >= 2) {
+                        const lat = parseFloat(parts[0]), lng = parseFloat(parts[1]);
+                        if (!isNaN(lat) && !isNaN(lng)) validCoords.push([lat, lng]);
+                    }
+                });
+
+                if (validCoords.length === 0) return;
+                const color = colors[colorIndex % colors.length]; colorIndex++;
+
+                validCoords.forEach(c => {
+                    allLatLngs.push(c);
+                    L.circleMarker(c, { radius: 5, color: color, fillColor: color, fillOpacity: 1 }).addTo(targetLayerGroup);
+                });
+
+                if (validCoords.length >= 3) {
+                    const turfPointsArray = validCoords.map(pt => [pt[1], pt[0]]);
+                    const turfPoints = turf.featureCollection(turfPointsArray.map(p => turf.point(p)));
+                    const hull = turf.convex(turfPoints);
+                    if (hull) {
+                        L.geoJSON(hull, { style: { color: color, weight: 2, fillOpacity: 0.25 } }).addTo(targetLayerGroup);
+                        const centerLonLat = turf.center(hull).geometry.coordinates;
+                        if (fullDisplayCode) addMapLabel(targetLayerGroup, [centerLonLat[1], centerLonLat[0]], fullDisplayCode, color);
+                    }
+                } else if (validCoords.length === 2) {
+                    L.polyline(validCoords, {color: color, weight: 3, dashArray: '5, 8'}).addTo(targetLayerGroup);
+                    const center = [(validCoords[0][0]+validCoords[1][0])/2, (validCoords[0][1]+validCoords[1][1])/2];
+                    if (fullDisplayCode) addMapLabel(targetLayerGroup, center, fullDisplayCode, color);
+                }
+            });
+        });
+        return allLatLngs;
+    }
+
+    // 【核心修復】自動收縮寬度的防偏移標籤
+    function addMapLabel(targetGroup, coord, text, borderColor) {
+        L.marker(coord, {
+            icon: L.divIcon({
+                className: 'leaflet-custom-div-icon',
+                html: `<div class="label-wrapper"><div class="area-label" style="border-color:${borderColor};">${text}</div></div>`,
+                iconSize: [0, 0], // 設定錨點容器為 0x0 避免 html2canvas 算錯
+                iconAnchor: [0, 0]
+            }), interactive: false
+        }).addTo(targetGroup);
+    }
+
+    function renderMap() {
+        allLatLngsGlobal = drawFeaturesToLayer(mapLayerGroup);
+        if (allLatLngsGlobal.length > 0) {
+            setTimeout(() => {
+                map.invalidateSize(); 
+                map.fitBounds(L.latLngBounds(allLatLngsGlobal), { padding: [60, 60] });
+            }, 50);
+        }
+    }
+
+    // ================= 預覽視窗與動態比例邏輯 =================
+    function openExportModal() {
+        document.getElementById('exportModal').style.display = 'flex';
+        
+        if (!exportMap) {
+            exportMap = L.map('exportMap', { preserveDrawingBuffer: true, renderer: L.canvas({ padding: 0.5 }) });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(exportMap);
+            exportLayerGroup = L.layerGroup().addTo(exportMap);
+        }
+        
+        drawFeaturesToLayer(exportLayerGroup);
+        
+        // 預設比例 9:16
+        const defaultBtn = document.querySelector('.btn-ratio');
+        setExportRatio(9, 16, defaultBtn);
+    }
+
+    function closeExportModal() {
+        document.getElementById('exportModal').style.display = 'none';
+    }
+
+    function setExportRatio(widthRatio, heightRatio, btn) {
+        document.querySelectorAll('.btn-ratio').forEach(b => b.classList.remove('active'));
+        if(btn) btn.classList.add('active');
+
+        const wrapper = document.getElementById('previewWrapper');
+        const mapEl = document.getElementById('exportMap');
+        
+        const wrapperAspect = wrapper.clientWidth / wrapper.clientHeight;
+        const targetAspect = widthRatio / heightRatio;
+
+        if (targetAspect > wrapperAspect) {
+            mapEl.style.width = '100%';
+            mapEl.style.height = (wrapper.clientWidth / targetAspect) + 'px';
+        } else {
+            mapEl.style.height = '100%';
+            mapEl.style.width = (wrapper.clientHeight * targetAspect) + 'px';
+        }
+
+        // 預覽時將邊距壓到極限 15px，完美最大化畫面
+        setTimeout(() => {
+            exportMap.invalidateSize();
+            if (allLatLngsGlobal.length > 0) {
+                exportMap.fitBounds(L.latLngBounds(allLatLngsGlobal), { padding: [15, 15], animate: false });
+            }
+        }, 50);
+    }
+
+    function executeExport() {
+        const btn = document.getElementById('btnConfirmExport');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '⏳ 處理中...';
+        btn.disabled = true;
+
+        const mapEl = document.getElementById('exportMap');
+        
+        html2canvas(mapEl, { 
+            useCORS: true, allowTaint: false, scale: 3, backgroundColor: '#e5e7eb',
+            scrollX: 0, scrollY: 0, width: mapEl.clientWidth, height: mapEl.clientHeight
+        }).then(canvas => {
+            const imgUrl = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = imgUrl; a.download = `座標分佈構圖_${new Date().toISOString().slice(0,10)}.png`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            closeExportModal();
+        }).catch(err => {
+            alert('擷取失敗！建議使用電腦內建截圖工具。');
+        }).finally(() => {
+            btn.innerHTML = orig; btn.disabled = false;
+        });
+    }
+
+    // ================= 以下為基礎表單操作與匯出，均保持最佳化邏輯 =================
+    function forceRefreshAndRender() {
+        gpxDataList.forEach((g, i) => { if (!g.customId || !g.customId.trim()) g.customId = `G${String(i + 1).padStart(2, '0')}`; });
+        updateGPXUI();
+        document.querySelectorAll('.sub-groups-container').forEach(container => { updateSubGroupLabels(container); });
+        renderMap();
+    }
+
     function handleGPXUpload(input) {
         const files = input.files;
         if (files.length === 0) return;
-
         Array.from(files).forEach(file => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const xmlDoc = new DOMParser().parseFromString(e.target.result, "text/xml");
                 const allPoints = [...extractCoords(xmlDoc, "trkpt"), ...extractCoords(xmlDoc, "rtept"), ...extractCoords(xmlDoc, "wpt")];
-
                 if (allPoints.length > 0) {
                     const defaultId = `G${String(gpxDataList.length + 1).padStart(2, '0')}`;
                     gpxDataList.push({
                         id: 'gpx_' + Date.now() + Math.floor(Math.random()*1000),
-                        customId: defaultId,
-                        fileName: file.name,
-                        points: allPoints,
-                        visible: true,
-                        color: gpxColors[gpxDataList.length % gpxColors.length]
+                        customId: defaultId, fileName: file.name, points: allPoints,
+                        visible: true, color: gpxColors[gpxDataList.length % gpxColors.length]
                     });
-                    updateGPXUI();
-                    renderMap(false);
-                } else {
-                    alert(`檔案 ${file.name} 中找不到有效的經緯度座標！`);
+                    updateGPXUI(); renderMap();
                 }
             };
             reader.readAsText(file);
@@ -426,8 +578,7 @@
         const points = xmlDoc.getElementsByTagName(tagName);
         const coords = [];
         for (let i = 0; i < points.length; i++) {
-            const lat = parseFloat(points[i].getAttribute("lat"));
-            const lon = parseFloat(points[i].getAttribute("lon"));
+            const lat = parseFloat(points[i].getAttribute("lat")), lon = parseFloat(points[i].getAttribute("lon"));
             if (!isNaN(lat) && !isNaN(lon)) coords.push([lat, lon]);
         }
         return coords;
@@ -437,7 +588,6 @@
         const wrapper = document.getElementById('gpxWrapper');
         const section = document.getElementById('gpxSection');
         wrapper.innerHTML = '';
-        
         if (gpxDataList.length > 0) {
             section.style.display = 'block';
             gpxDataList.forEach((gpx, index) => {
@@ -447,137 +597,38 @@
                             <div class="gpx-info">
                                 <input type="checkbox" class="toggle-checkbox" ${gpx.visible ? 'checked' : ''} onchange="toggleGPX('${gpx.id}', this.checked)">
                                 <span style="font-size: 12px; font-weight: bold; color: #78350f;">代號:</span>
-                                <input type="text" class="input-gpx-id" value="${gpx.customId}" placeholder="輸入代號" onchange="updateGPXId('${gpx.id}', this.value)" oninput="updateGPXId('${gpx.id}', this.value)">
+                                <input type="text" class="input-gpx-id" value="${gpx.customId}" onchange="updateGPXId('${gpx.id}', this.value)" oninput="updateGPXId('${gpx.id}', this.value)">
                             </div>
                             <div class="sort-group">
-                                <button class="btn-sort" onclick="moveGPX(${index}, -1)" title="圖層上移">⬆️</button>
-                                <button class="btn-sort" onclick="moveGPX(${index}, 1)" title="圖層下移">⬇️</button>
+                                <button class="btn-sort" onclick="moveGPX(${index}, -1)">⬆️</button>
+                                <button class="btn-sort" onclick="moveGPX(${index}, 1)">⬇️</button>
                             </div>
                             <button class="btn-del-small" onclick="deleteGPX('${gpx.id}')">刪除</button>
                         </div>
-                        <div class="gpx-filename-box" title="唯讀檔案名稱：${gpx.fileName}">
-                            📄 ${gpx.fileName} (${gpx.points.length}點)
-                        </div>
-                    </div>
-                `;
+                        <div class="gpx-filename-box">📄 ${gpx.fileName} (${gpx.points.length}點)</div>
+                    </div>`;
                 wrapper.insertAdjacentHTML('beforeend', html);
             });
-        } else {
-            section.style.display = 'none';
-        }
+        } else { section.style.display = 'none'; }
     }
 
-    function updateGPXId(id, newId) {
-        const target = gpxDataList.find(g => g.id === id);
-        if (target) { target.customId = newId.trim() || `G01`; renderMap(false); }
-    }
-    function toggleGPX(id, isVisible) {
-        const target = gpxDataList.find(g => g.id === id);
-        if (target) { target.visible = isVisible; renderMap(false); }
-    }
-    function deleteGPX(id) {
-        gpxDataList = gpxDataList.filter(g => g.id !== id);
-        updateGPXUI(); renderMap(false);
-    }
+    function updateGPXId(id, newId) { const target = gpxDataList.find(g => g.id === id); if (target) { target.customId = newId.trim() || `G01`; renderMap(); } }
+    function toggleGPX(id, isVisible) { const target = gpxDataList.find(g => g.id === id); if (target) { target.visible = isVisible; renderMap(); } }
+    function deleteGPX(id) { gpxDataList = gpxDataList.filter(g => g.id !== id); updateGPXUI(); renderMap(); }
     function moveGPX(index, direction) {
-        const newIndex = index + direction;
-        if (newIndex < 0 || newIndex >= gpxDataList.length) return;
-        const temp = gpxDataList[index];
-        gpxDataList[index] = gpxDataList[newIndex];
-        gpxDataList[newIndex] = temp;
-        updateGPXUI(); renderMap(false);
+        const newIndex = index + direction; if (newIndex < 0 || newIndex >= gpxDataList.length) return;
+        const temp = gpxDataList[index]; gpxDataList[index] = gpxDataList[newIndex]; gpxDataList[newIndex] = temp;
+        updateGPXUI(); renderMap();
     }
 
-    // ================= 手動分組排序與 DOM 移動 =================
     function moveDOMElement(btn, direction) {
-        const el = btn.closest('.folder, .sub-group');
-        const parent = el.parentElement;
-        if (direction === -1 && el.previousElementSibling) {
-            parent.insertBefore(el, el.previousElementSibling);
-        } else if (direction === 1 && el.nextElementSibling) {
-            parent.insertBefore(el.nextElementSibling, el);
-        }
+        const el = btn.closest('.folder, .sub-group'), parent = el.parentElement;
+        if (direction === -1 && el.previousElementSibling) parent.insertBefore(el, el.previousElementSibling);
+        else if (direction === 1 && el.nextElementSibling) parent.insertBefore(el.nextElementSibling, el);
         if (el.classList.contains('sub-group')) updateSubGroupLabels(parent);
-        renderMap(false);
+        renderMap();
     }
 
-    // ================= 匯出分組座標為 GPX (.wpt) =================
-    function exportSubgroupWPT(btn) {
-        const sg = btn.closest('.sub-group');
-        const folderName = sg.closest('.folder').querySelector('.input-folder-name').value.trim();
-        const numStr = sg.querySelector('.input-sub-num').value.trim() || '01';
-        const fullCode = folderName ? `${folderName}${numStr}` : `${numStr}`;
-        const coordsText = sg.querySelector('.textarea-coords').value.trim();
-        
-        if (!coordsText) { alert('此分組無座標可匯出！'); return; }
-
-        let wptXML = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="MapVisualizerPro" xmlns="http://www.topografix.com/GPX/1/1">\n`;
-        let count = 0;
-
-        coordsText.split('\n').forEach(line => {
-            const parts = line.trim().split(/[,，\t\s]+/);
-            if (parts.length >= 2) {
-                const lat = parseFloat(parts[0]);
-                const lon = parseFloat(parts[1]);
-                if (!isNaN(lat) && !isNaN(lon)) {
-                    count++;
-                    wptXML += `  <wpt lat="${lat}" lon="${lon}">\n    <name>${fullCode}_WPT${String(count).padStart(2, '0')}</name>\n  </wpt>\n`;
-                }
-            }
-        });
-
-        wptXML += `</gpx>`;
-        if (count === 0) { alert('找不到有效的經緯度座標！'); return; }
-
-        const blob = new Blob([wptXML], { type: 'application/gpx+xml;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `${fullCode}_航點.gpx`; 
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    // ================= 下載圖面圖片（核心突破：完美防裁切、防跑位、完整多邊形輸出） =================
-    function downloadMapImage() {
-        // 觸發大邊距 (padding: 120) 與無動畫瞬間鎖定
-        renderMap(true); 
-        
-        const btn = document.getElementById('btnDownloadImg');
-        const orig = btn.innerHTML;
-        btn.innerHTML = '⏳ 正在鎖定畫面並繪製圖磚...';
-        btn.disabled = true;
-
-        // 給予 1.8 秒充分時間，讓 HTML5 Canvas 向量層與 OSM 圖磚完全繪製完畢
-        setTimeout(() => {
-            const mapEl = document.getElementById('map');
-            
-            // 【關鍵突破 3】：嚴格限定 html2canvas 的可視邊界與捲動偏移為 0，防止邊緣點位被裁切！
-            html2canvas(mapEl, { 
-                useCORS: true, 
-                allowTaint: false, 
-                scale: 2, 
-                backgroundColor: '#e5e7eb',
-                logging: false,
-                scrollX: 0,
-                scrollY: 0,
-                x: 0,
-                y: 0,
-                width: mapEl.clientWidth,
-                height: mapEl.clientHeight
-            }).then(canvas => {
-                const imgUrl = canvas.toDataURL('image/png');
-                const a = document.createElement('a');
-                a.href = imgUrl; a.download = `座標分佈完整地圖_${new Date().toISOString().slice(0,10)}.png`;
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            }).catch(err => {
-                alert('擷取失敗！可能受限於瀏覽器安全性(CORS)，建議使用電腦內建截圖工具。');
-            }).finally(() => {
-                btn.innerHTML = orig; btn.disabled = false;
-            });
-        }, 1800);
-    }
-
-    // ================= 資料夾與編號管理基礎邏輯 =================
     function addFolder() {
         const wrapper = document.getElementById('foldersWrapper');
         const folderId = 'folder_' + Date.now();
@@ -586,10 +637,10 @@
                 <div class="folder-header">
                     <button class="btn-toggle" onclick="toggleFolder(this)">▼</button>
                     <input type="checkbox" class="toggle-checkbox folder-checkbox" checked onchange="handleFolderToggle(this)">
-                    <input type="text" class="input-folder-name" placeholder="請輸入群組名稱 (例如: 台北)" onchange="renderMap(false)" oninput="renderMap(false)">
+                    <input type="text" class="input-folder-name" placeholder="群組名稱 (例: 台北)" onchange="renderMap()" oninput="renderMap()">
                     <div class="sort-group">
-                        <button class="btn-sort" onclick="moveDOMElement(this, -1)" title="群組上移">⬆️</button>
-                        <button class="btn-sort" onclick="moveDOMElement(this, 1)" title="群組下移">⬇️</button>
+                        <button class="btn-sort" onclick="moveDOMElement(this, -1)">⬆️</button>
+                        <button class="btn-sort" onclick="moveDOMElement(this, 1)">⬇️</button>
                     </div>
                     <button class="btn-del-small" onclick="deleteFolder('${folderId}')">刪除</button>
                 </div>
@@ -597,13 +648,12 @@
                     <div class="sub-groups-container"></div>
                     <button class="btn-add-sub" onclick="addSubGroup(this.previousElementSibling)">+ 新增編號</button>
                 </div>
-            </div>
-        `;
+            </div>`;
         wrapper.insertAdjacentHTML('beforeend', html);
         addSubGroup(document.getElementById(folderId).querySelector('.sub-groups-container'));
     }
 
-    function deleteFolder(id) { document.getElementById(id).remove(); renderMap(false); }
+    function deleteFolder(id) { document.getElementById(id).remove(); renderMap(); }
     function toggleFolder(btn) {
         const content = btn.parentElement.nextElementSibling;
         content.style.display = content.style.display === 'none' ? 'block' : 'none';
@@ -611,7 +661,7 @@
     }
     function handleFolderToggle(cb) {
         cb.closest('.folder').querySelectorAll('.sub-checkbox').forEach(sub => sub.checked = cb.checked);
-        renderMap(false);
+        renderMap();
     }
 
     function addSubGroup(container) {
@@ -619,36 +669,31 @@
             <div class="sub-group">
                 <div class="sub-group-header">
                     <div class="sub-header-left">
-                        <input type="checkbox" class="toggle-checkbox sub-checkbox" checked onchange="handleSubToggle(this)" title="顯示/隱藏此編號圖層">
+                        <input type="checkbox" class="toggle-checkbox sub-checkbox" checked onchange="handleSubToggle(this)">
                         <span style="color: #475569;">編號:</span>
-                        <input type="text" class="input-sub-num" value="" readonly style="cursor: not-allowed;" onchange="renderMap(false)" oninput="renderMap(false)" title="勾選右側「自訂」即可手動修改此名稱">
-                        <label class="label-custom-switch" title="切換為手動輸入自訂名稱/編號模式">
-                            <input type="checkbox" class="cb-custom-num" onchange="toggleCustomMode(this)" style="margin:0; cursor:pointer;"> 自訂
-                        </label>
+                        <input type="text" class="input-sub-num" readonly onchange="renderMap()" oninput="renderMap()">
+                        <label class="label-custom-switch"><input type="checkbox" class="cb-custom-num" onchange="toggleCustomMode(this)" style="margin:0;"> 自訂</label>
                     </div>
                     <div class="sort-group">
-                        <button class="btn-sort" onclick="moveDOMElement(this, -1)" title="上移">⬆️</button>
-                        <button class="btn-sort" onclick="moveDOMElement(this, 1)" title="下移">⬇️</button>
+                        <button class="btn-sort" onclick="moveDOMElement(this, -1)">⬆️</button>
+                        <button class="btn-sort" onclick="moveDOMElement(this, 1)">⬇️</button>
                         <button class="btn-del-small" style="background:#f43f5e;" onclick="deleteSubGroup(this)">刪除</button>
                     </div>
                 </div>
-                <textarea class="textarea-coords" placeholder="貼上座標：緯度, 經度 (換行分隔)" onchange="renderMap(false)"></textarea>
+                <textarea class="textarea-coords" placeholder="貼上座標：緯度, 經度" onchange="renderMap()"></textarea>
                 <div class="sub-actions">
                     <button class="btn-action" onclick="pasteCoords(this)">📋 貼上</button>
                     <button class="btn-action" onclick="clearCoords(this)">🧹 清空</button>
                     <button class="btn-action btn-export-wpt" onclick="exportSubgroupWPT(this)">💾 匯出.wpt</button>
                 </div>
-            </div>
-        `;
+            </div>`;
         container.insertAdjacentHTML('beforeend', html);
         updateSubGroupLabels(container);
     }
 
     function deleteSubGroup(btn) {
         const container = btn.closest('.sub-groups-container');
-        btn.closest('.sub-group').remove();
-        updateSubGroupLabels(container);
-        renderMap(false);
+        btn.closest('.sub-group').remove(); updateSubGroupLabels(container); renderMap();
     }
 
     function updateSubGroupLabels(container) {
@@ -656,179 +701,64 @@
         container.querySelectorAll('.sub-group').forEach((sg) => {
             const isCustom = sg.querySelector('.cb-custom-num').checked;
             const numInput = sg.querySelector('.input-sub-num');
-            
             if (!isCustom) {
                 const autoNumStr = String(autoCounter).padStart(2, '0');
-                numInput.value = autoNumStr;
-                sg.dataset.num = autoNumStr;
-                autoCounter++;
+                numInput.value = autoNumStr; sg.dataset.num = autoNumStr; autoCounter++;
             } else {
-                if (!numInput.value.trim()) {
-                    numInput.value = `自訂${autoCounter}`;
-                }
+                if (!numInput.value.trim()) numInput.value = `自訂${autoCounter}`;
                 sg.dataset.num = numInput.value.trim();
             }
         });
     }
 
     function toggleCustomMode(cb) {
-        const sg = cb.closest('.sub-group');
-        const numInput = sg.querySelector('.input-sub-num');
-        const labelEl = cb.closest('.label-custom-switch');
-
+        const sg = cb.closest('.sub-group'), numInput = sg.querySelector('.input-sub-num'), labelEl = cb.closest('.label-custom-switch');
         if (cb.checked) {
-            numInput.readOnly = false;
-            numInput.style.background = '#ffffff';
-            numInput.style.borderColor = '#3b82f6';
-            numInput.style.color = '#1d4ed8';
-            numInput.style.cursor = 'text';
-            labelEl.style.background = '#dbeafe';
-            labelEl.style.borderColor = '#3b82f6';
-            labelEl.style.color = '#1d4ed8';
-            labelEl.style.fontWeight = 'bold';
-            numInput.focus();
+            numInput.readOnly = false; numInput.style.background = '#ffffff'; numInput.style.borderColor = '#3b82f6';
+            numInput.style.color = '#1d4ed8'; labelEl.style.background = '#dbeafe'; labelEl.style.borderColor = '#3b82f6';
+            labelEl.style.color = '#1d4ed8'; labelEl.style.fontWeight = 'bold'; numInput.focus();
         } else {
-            numInput.readOnly = true;
-            numInput.style.background = '#f1f5f9';
-            numInput.style.borderColor = '#cbd5e1';
-            numInput.style.color = '#1e293b';
-            numInput.style.cursor = 'not-allowed';
-            labelEl.style.background = '#e2e8f0';
-            labelEl.style.borderColor = '#cbd5e1';
-            labelEl.style.color = '#64748b';
-            labelEl.style.fontWeight = 'normal';
-            updateSubGroupLabels(sg.closest('.sub-groups-container'));
+            numInput.readOnly = true; numInput.style.background = '#f1f5f9'; numInput.style.borderColor = '#cbd5e1';
+            numInput.style.color = '#1e293b'; labelEl.style.background = '#e2e8f0'; labelEl.style.borderColor = '#cbd5e1';
+            labelEl.style.color = '#64748b'; labelEl.style.fontWeight = 'normal'; updateSubGroupLabels(sg.closest('.sub-groups-container'));
         }
-        renderMap(false);
+        renderMap();
     }
 
     function handleSubToggle(cb) {
-        const folder = cb.closest('.folder');
-        folder.querySelector('.folder-checkbox').checked = Array.from(folder.querySelectorAll('.sub-checkbox')).some(c => c.checked);
-        renderMap(false);
+        cb.closest('.folder').querySelector('.folder-checkbox').checked = Array.from(cb.closest('.folder').querySelectorAll('.sub-checkbox')).some(c => c.checked);
+        renderMap();
     }
-    function clearCoords(btn) { btn.closest('.sub-group').querySelector('.textarea-coords').value = ''; renderMap(false); }
+    function clearCoords(btn) { btn.closest('.sub-group').querySelector('.textarea-coords').value = ''; renderMap(); }
     async function pasteCoords(btn) {
-        try { 
-            btn.closest('.sub-group').querySelector('.textarea-coords').value = await navigator.clipboard.readText(); 
-            renderMap(false);
-        } catch (err) { alert('無法讀取剪貼簿，請使用 Ctrl+V 手動貼上。'); }
+        try { btn.closest('.sub-group').querySelector('.textarea-coords').value = await navigator.clipboard.readText(); renderMap(); } 
+        catch (err) { alert('無法讀取剪貼簿，請手動貼上。'); }
     }
 
-    // ================= 核心：地圖繪製與多邊形渲染 =================
-    function renderMap(isExporting = false) {
-        mapLayerGroup.clearLayers();
-        const allLatLngs = [];
-        
-        // 1. 繪製 GPX 圖層
-        gpxDataList.forEach(gpx => {
-            if (!gpx.visible) return;
-            const validCoords = gpx.points;
-            if (validCoords.length === 0) return;
+    function exportSubgroupWPT(btn) {
+        const sg = btn.closest('.sub-group');
+        const folderName = sg.closest('.folder').querySelector('.input-folder-name').value.trim();
+        const numStr = sg.querySelector('.input-sub-num').value.trim() || '01';
+        const fullCode = folderName ? `${folderName}${numStr}` : `${numStr}`;
+        const coordsText = sg.querySelector('.textarea-coords').value.trim();
+        if (!coordsText) { alert('此分組無座標可匯出！'); return; }
 
-            validCoords.forEach(pt => allLatLngs.push(pt));
-            const displayLabel = gpx.customId || "未命名GPX";
-
-            const step = Math.ceil(validCoords.length / 150);
-            for (let i = 0; i < validCoords.length; i += step) {
-                L.circleMarker(validCoords[i], { radius: 4, color: gpx.color, fillColor: gpx.color, fillOpacity: 0.8 })
-                 .bindPopup(`區域代號: <strong>${displayLabel}</strong>`).addTo(mapLayerGroup);
-            }
-
-            if (validCoords.length >= 3) {
-                const turfPointsArray = validCoords.map(pt => [pt[1], pt[0]]);
-                const turfPoints = turf.featureCollection(turfPointsArray.map(p => turf.point(p)));
-                const hull = turf.convex(turfPoints);
-                if (hull) {
-                    L.geoJSON(hull, { style: { color: gpx.color, weight: 2, fillOpacity: 0.25 } }).addTo(mapLayerGroup);
-                    const centerLonLat = turf.center(hull).geometry.coordinates;
-                    addMapLabel([centerLonLat[1], centerLonLat[0]], displayLabel, gpx.color);
-                }
-            } else if (validCoords.length === 2) {
-                L.polyline(validCoords, { color: gpx.color, weight: 3, dashArray: '5, 8' }).addTo(mapLayerGroup);
-                const center = [(validCoords[0][0]+validCoords[1][0])/2, (validCoords[0][1]+validCoords[1][1])/2];
-                addMapLabel(center, displayLabel, gpx.color);
-            } else if (validCoords.length === 1) {
-                addMapLabel(validCoords[0], displayLabel, gpx.color);
+        let wptXML = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="MapVisualizerPro" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+        let count = 0;
+        coordsText.split('\n').forEach(line => {
+            const parts = line.trim().split(/[,，\t\s]+/);
+            if (parts.length >= 2) {
+                const lat = parseFloat(parts[0]), lon = parseFloat(parts[1]);
+                if (!isNaN(lat) && !isNaN(lon)) { count++; wptXML += `  <wpt lat="${lat}" lon="${lon}">\n    <name>${fullCode}_WPT${String(count).padStart(2, '0')}</name>\n  </wpt>\n`; }
             }
         });
+        wptXML += `</gpx>`;
+        if (count === 0) return alert('找不到有效的經緯度座標！');
 
-        // 2. 繪製手動座標群組
-        let colorIndex = 0;
-        document.querySelectorAll('.folder').forEach(folder => {
-            const folderName = folder.querySelector('.input-folder-name').value.trim();
-            
-            folder.querySelectorAll('.sub-group').forEach(sg => {
-                if (!sg.querySelector('.sub-checkbox').checked) return; 
-
-                const numStr = sg.querySelector('.input-sub-num').value.trim() || '01';
-                const fullCode = folderName ? `${folderName}${numStr}` : `${numStr}`;
-                const coordsText = sg.querySelector('.textarea-coords').value.trim();
-                if (!coordsText) return; 
-
-                const validCoords = [];
-                coordsText.split('\n').forEach(line => {
-                    const parts = line.trim().split(/[,，\t\s]+/); 
-                    if (parts.length >= 2) {
-                        const lat = parseFloat(parts[0]);
-                        const lng = parseFloat(parts[1]);
-                        if (!isNaN(lat) && !isNaN(lng)) validCoords.push([lat, lng]);
-                    }
-                });
-
-                if (validCoords.length === 0) return;
-
-                const color = colors[colorIndex % colors.length];
-                colorIndex++;
-
-                validCoords.forEach(c => {
-                    allLatLngs.push(c);
-                    L.circleMarker(c, { radius: 5, color: color, fillColor: color, fillOpacity: 1 })
-                     .bindPopup(`區域代號: <strong>${fullCode}</strong>`).addTo(mapLayerGroup);
-                });
-
-                if (validCoords.length >= 3) {
-                    const turfPointsArray = validCoords.map(pt => [pt[1], pt[0]]);
-                    const turfPoints = turf.featureCollection(turfPointsArray.map(p => turf.point(p)));
-                    const hull = turf.convex(turfPoints);
-                    if (hull) {
-                        L.geoJSON(hull, { style: { color: color, weight: 2, fillOpacity: 0.25 } }).addTo(mapLayerGroup);
-                        const centerLonLat = turf.center(hull).geometry.coordinates;
-                        addMapLabel([centerLonLat[1], centerLonLat[0]], fullCode, color);
-                    }
-                } else if (validCoords.length === 2) {
-                    L.polyline(validCoords, {color: color, weight: 3, dashArray: '5, 8'}).addTo(mapLayerGroup);
-                    const center = [(validCoords[0][0]+validCoords[1][0])/2, (validCoords[0][1]+validCoords[1][1])/2];
-                    addMapLabel(center, fullCode, color);
-                }
-            });
-        });
-
-        // 3. 自動適應邊界：截圖時給予 [120, 120] 大留白並關閉 CSS 滑動動畫
-        if (allLatLngs.length > 0) {
-            setTimeout(() => {
-                map.invalidateSize(); 
-                const paddingSize = isExporting ? [120, 120] : [60, 60];
-                map.fitBounds(L.latLngBounds(allLatLngs), { 
-                    padding: paddingSize, 
-                    maxZoom: 15,
-                    animate: !isExporting
-                });
-            }, 50);
-        }
-    }
-
-    // 【關鍵突破 2】：廢除負邊距定位！使用 140x28 嚴格對稱盒模型，錨點設定在 [70, 14] 正中央
-    function addMapLabel(coord, text, borderColor) {
-        L.marker(coord, {
-            icon: L.divIcon({
-                className: 'leaflet-custom-div-icon',
-                html: `<div class="area-label" style="border-color:${borderColor};">${text}</div>`,
-                iconSize: [140, 28],
-                iconAnchor: [70, 14]
-            }),
-            interactive: false
-        }).addTo(mapLayerGroup);
+        const blob = new Blob([wptXML], { type: 'application/gpx+xml;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `${fullCode}_航點.gpx`; 
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     }
 
     window.onload = initMap;
