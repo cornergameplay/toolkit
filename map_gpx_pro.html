@@ -3,111 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>座標分佈與 GPX 視覺化管理系統 (Pro Max Final)</title>
+    <title>座標分佈與 GPX 視覺化管理系統 (Pro v9 智能出圖版)</title>
     
     <!-- 引入 Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
         :root {
-            --primary: #3b82f6;
-            --primary-dark: #2563eb;
-            --danger: #ef4444;
-            --success: #22c55e;
-            --warning: #f59e0b;
-            --purple: #8b5cf6;
-            --teal: #0d9488;
-            --gray-bg: #f8fafc;
-            --border-color: #cbd5e1;
-            --text-dark: #1e293b;
+            --primary: #3b82f6; --primary-dark: #2563eb;
+            --danger: #ef4444; --success: #22c55e;
+            --warning: #f59e0b; --purple: #8b5cf6;
+            --teal: #0d9488; --gray-bg: #f8fafc;
+            --border-color: #cbd5e1; --text-dark: #1e293b;
         }
-        body {
-            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            background-color: #f1f5f9;
-        }
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #f1f5f9; }
         
-        /* --- 頂部導航與收合按鈕 --- */
-        header {
-            background: #0f172a;
-            color: white;
-            padding: 10px 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            z-index: 20;
-        }
+        header { background: #0f172a; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 20; }
         .header-left { display: flex; align-items: center; gap: 12px; }
-        .btn-toggle-sidebar {
-            background: #334155;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 6px 10px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
+        .btn-toggle-sidebar { background: #334155; color: white; border: none; border-radius: 4px; padding: 6px 10px; font-size: 16px; cursor: pointer; transition: 0.2s; }
         .btn-toggle-sidebar:hover { background: #475569; }
         header h1 { font-size: 1.2rem; margin: 0; }
         
         .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
         
-        /* ================= 左側控制面板 (支援動態收合) ================= */
-        .sidebar {
-            width: 490px;
-            padding: 15px;
-            overflow-y: auto;
-            background: white;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-            z-index: 10;
-            transition: all 0.3s ease;
-        }
-        .sidebar.collapsed {
-            width: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-            overflow: hidden !important;
-            opacity: 0;
-        }
+        .sidebar { width: 490px; padding: 15px; overflow-y: auto; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; z-index: 10; transition: all 0.3s ease; }
+        .sidebar.collapsed { width: 0 !important; padding: 0 !important; border: none !important; overflow: hidden !important; opacity: 0; }
         
         .top-actions { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
-        .btn {
-            cursor: pointer; border: none; border-radius: 6px;
-            padding: 7px 10px; font-size: 12px; font-weight: bold;
-            color: white; transition: opacity 0.2s;
-            flex: 1 1 45%; text-align: center;
-        }
+        .btn { cursor: pointer; border: none; border-radius: 6px; padding: 7px 10px; font-size: 12px; font-weight: bold; color: white; transition: opacity 0.2s; flex: 1 1 45%; text-align: center; }
         .btn:hover { opacity: 0.85; }
         .btn-add-folder { background: var(--success); }
         .btn-add-gpx { background: var(--warning); color: #000; }
         .btn-refresh { background: var(--teal); }
         .btn-download-img { background: var(--purple); }
         
-        .section-title {
-            font-size: 14px; font-weight: bold; color: var(--text-dark);
-            margin: 12px 0 8px 0; border-bottom: 2px solid var(--border-color);
-            padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;
-        }
-
+        .section-title { font-size: 14px; font-weight: bold; color: var(--text-dark); margin: 12px 0 8px 0; border-bottom: 2px solid var(--border-color); padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
         .sort-group { display: flex; gap: 2px; }
         .btn-sort { background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; padding: 2px 6px; font-size: 11px; }
         .btn-del-small { background: var(--danger); color: white; border: none; padding: 3px 7px; border-radius: 4px; cursor: pointer; font-size: 11px; }
 
-        /* --- GPX 區塊 --- */
         .gpx-item { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px; }
         .gpx-header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
         .gpx-info { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
         .input-gpx-id { flex: 1; min-width: 40px; padding: 3px 6px; border: 1px solid #d97706; border-radius: 4px; font-size: 12px; font-weight: bold; color: #92400e; }
         .gpx-filename-box { font-size: 11px; color: #64748b; background: #f1f5f9; padding: 3px 6px; border-radius: 4px; border: 1px dashed #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* --- 資料夾與子編號 --- */
         .folder { border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 12px; background: white; overflow: hidden; }
         .folder-header { background: #e2e8f0; padding: 6px 10px; display: flex; align-items: center; gap: 6px; }
         .btn-toggle { background: none; border: none; cursor: pointer; font-size: 13px; width: 18px; }
@@ -126,86 +66,53 @@
         .btn-export-wpt { background: #0891b2; }
         .btn-add-sub { background: white; border: 1px dashed var(--primary); color: var(--primary); width: 100%; padding: 6px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
 
-        /* ================= 右側主地圖與標籤 ================= */
         #map { flex: 1; background: #e5e7eb; }
         .leaflet-custom-div-icon { background: transparent; border: none; }
         
-        /* 核心修復：彈性字體長度 + 絕對置中防偏移 */
-        .label-wrapper {
-            position: absolute; left: -150px; top: -14px;
-            width: 300px; height: 28px;
-            display: flex; justify-content: center; align-items: center;
-            pointer-events: none;
-        }
-        .area-label {
-            display: inline-block; /* 字多長框多長 */
-            background: rgba(255, 255, 255, 0.95);
-            border: 2px solid; border-radius: 4px;
-            padding: 2px 6px; /* 緊貼文字的內邊距 */
-            font-weight: bold; font-size: 13px; color: #000000 !important;
-            white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        .label-wrapper { position: absolute; left: -150px; top: -14px; width: 300px; height: 28px; display: flex; justify-content: center; align-items: center; pointer-events: none; }
+        .area-label { display: inline-block; background: rgba(255, 255, 255, 0.95); border: 2px solid; border-radius: 4px; padding: 2px 6px; font-weight: bold; font-size: 13px; color: #000000 !important; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+
+        .leaflet-control-labels { background: white; border: 2px solid rgba(0,0,0,0.2); border-radius: 5px; padding: 5px; box-shadow: 0 1px 5px rgba(0,0,0,0.65); font-size: 13px; font-family: inherit; }
+        .labels-menu-header { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #334155; cursor: pointer; padding: 4px 8px; }
+        .labels-menu-content { display: none; flex-direction: column; gap: 8px; padding: 10px; border-top: 1px solid #e2e8f0; margin-top: 5px; }
+        .leaflet-control-labels:hover .labels-menu-content, .leaflet-control-labels:focus-within .labels-menu-content { display: flex; }
+        .label-toggle-item { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #1e293b; }
+        
+        /* 半透明深色浮水印樣式 */
+        .leaflet-control-watermark {
+            background: rgba(0, 0, 0, 0.65); 
+            color: #ffffff;
+            padding: 8px 16px; 
+            border-radius: 6px; 
+            font-size: 22px; 
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4); 
+            border: 1px solid rgba(255,255,255,0.2);
+            pointer-events: none; 
+            margin-bottom: 25px !important; 
+            margin-right: 25px !important;
+            max-width: 80%; 
+            word-wrap: break-word; 
+            text-align: center; 
+            backdrop-filter: blur(4px);
         }
 
-        /* ================= 標籤顯示控制選單 (懸浮於地圖右上角) ================= */
-        .leaflet-control-labels {
-            background: white;
-            border: 2px solid rgba(0,0,0,0.2);
-            border-radius: 5px;
-            padding: 5px;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.65);
-            font-size: 13px;
-            font-family: inherit;
-        }
-        .labels-menu-header {
-            display: flex; align-items: center; gap: 6px;
-            font-weight: bold; color: #334155; cursor: pointer;
-            padding: 4px 8px;
-        }
-        .labels-menu-content {
-            display: none; flex-direction: column; gap: 8px;
-            padding: 10px; border-top: 1px solid #e2e8f0; margin-top: 5px;
-        }
-        /* 讓滑鼠移入或點擊時展開選單 */
-        .leaflet-control-labels:hover .labels-menu-content,
-        .leaflet-control-labels:focus-within .labels-menu-content {
-            display: flex;
-        }
-        .label-toggle-item {
-            display: flex; align-items: center; gap: 6px; cursor: pointer; color: #1e293b;
-        }
-        .label-toggle-item input { cursor: pointer; }
-
-        /* ================= 圖片輸出預覽視窗 (Modal) ================= */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.75); z-index: 9999;
-            display: none; justify-content: center; align-items: center;
-            backdrop-filter: blur(3px);
-        }
-        .modal-content {
-            background: white; padding: 20px; border-radius: 12px;
-            width: 95%; max-width: 900px; max-height: 95vh;
-            display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        /* ================= 圖片輸出預覽視窗 ================= */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 9999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 95%; max-width: 900px; max-height: 95vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .modal-header h3 { margin: 0; color: var(--text-dark); }
         
+        .watermark-setup { background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 12px; }
+        
         .ratio-buttons { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; justify-content: center; }
-        .btn-ratio {
-            background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 6px;
-            padding: 8px 16px; font-weight: bold; color: #475569; cursor: pointer; transition: 0.2s;
-        }
+        .btn-ratio { background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 6px; padding: 8px 16px; font-weight: bold; color: #475569; cursor: pointer; transition: 0.2s; }
         .btn-ratio.active { background: #eff6ff; border-color: var(--primary); color: var(--primary-dark); }
         
-        .preview-wrapper {
-            flex: 1; background: #cbd5e1; border-radius: 8px; display: flex;
-            justify-content: center; align-items: center; overflow: hidden;
-            position: relative; min-height: 40vh; margin-bottom: 15px;
-        }
-        #exportMap {
-            background: #e5e7eb; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        }
+        .preview-wrapper { flex: 1; background: #334155; border-radius: 8px; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; min-height: 35vh; margin-bottom: 15px; }
+        
+        /* 核心修復：預覽用真實尺寸，並透過 transform 縮小適應螢幕 */
+        #exportMap { background: #e5e7eb; position: absolute; top: 50%; left: 50%; transform-origin: center center; }
         
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
         .btn-cancel { background: #94a3b8; }
@@ -215,6 +122,7 @@
             .main-container { flex-direction: column; }
             .sidebar { width: 100%; height: 50vh; }
             #map { height: 50vh; }
+            .modal-content { padding: 12px; }
         }
     </style>
 </head>
@@ -222,34 +130,24 @@
 
 <header>
     <div class="header-left">
-        <!-- 側邊欄收合按鈕 -->
-        <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="收合/展開面板 (將地圖最大化)">☰</button>
+        <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="收合/展開面板">☰</button>
         <h1>🗺️ 座標分佈管理系統</h1>
     </div>
-    <span style="font-size: 12px; color: #94a3b8;">Pro Max Final</span>
+    <span style="font-size: 12px; color: #94a3b8;">Pro v9</span>
 </header>
 
 <div class="main-container">
     <div class="sidebar" id="sidebarPanel">
         <input type="file" id="gpxUploader" accept=".gpx" multiple style="display: none;" onchange="handleGPXUpload(this)">
-
         <div class="top-actions">
             <button class="btn btn-add-folder" onclick="addFolder()">+ 新增座標群組</button>
             <button class="btn btn-add-gpx" onclick="document.getElementById('gpxUploader').click()">📁 匯入 GPX</button>
             <button class="btn btn-refresh" onclick="forceRefreshAndRender()">✨ 整理與重繪</button>
-            <!-- 輸出圖面預覽 -->
-            <button class="btn btn-download-img" onclick="openExportModal()">📸 輸出圖面 (預覽微調)</button>
+            <button class="btn btn-download-img" onclick="openExportModal()">📸 輸出高畫質圖面</button>
         </div>
-        
-        <div id="gpxSection" style="display: none;">
-            <div class="section-title">📍 GPX 軌跡圖層</div>
-            <div id="gpxWrapper"></div>
-        </div>
-
-        <div class="section-title">📂 手動座標分組</div>
-        <div id="foldersWrapper"></div>
+        <div id="gpxSection" style="display: none;"><div class="section-title">📍 GPX 軌跡圖層</div><div id="gpxWrapper"></div></div>
+        <div class="section-title">📂 手動座標分組</div><div id="foldersWrapper"></div>
     </div>
-
     <div id="map"></div>
 </div>
 
@@ -257,17 +155,24 @@
 <div class="modal-overlay" id="exportModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>🖼️ 輸出圖片預覽 (支援拖曳/縮放微調)</h3>
+            <h3>🖼️ 高畫質輸出預覽 (可拖曳微調)</h3>
+        </div>
+        
+        <!-- 浮水印自訂區塊 (兼作檔名來源) -->
+        <div class="watermark-setup">
+            <label style="font-size: 13px; font-weight: bold; color: var(--text-dark);">🏷️ 圖片浮水印 / 名稱說明 (將顯示於右下角，並作為下載檔名):</label>
+            <input type="text" id="watermarkInput" placeholder="例如：2026 北海岸據點分布圖" style="width: 100%; padding: 8px; margin-top: 6px; border: 1px solid #94a3b8; border-radius: 6px; box-sizing: border-box; font-size: 14px;" oninput="updateWatermark()">
         </div>
         
         <div class="ratio-buttons">
-            <button class="btn-ratio active" onclick="setExportRatio(9, 16, this)">9:16 (直向手機)</button>
-            <button class="btn-ratio" onclick="setExportRatio(16, 9, this)">16:9 (橫向簡報)</button>
-            <button class="btn-ratio" onclick="setExportRatio(3, 4, this)">3:4 (直向一般)</button>
-            <button class="btn-ratio" onclick="setExportRatio(4, 3, this)">4:3 (橫向一般)</button>
+            <button class="btn-ratio active" onclick="setExportRatio('9:16', this)">9:16 (直向手機)</button>
+            <button class="btn-ratio" onclick="setExportRatio('16:9', this)">16:9 (橫向簡報)</button>
+            <button class="btn-ratio" onclick="setExportRatio('3:4', this)">3:4 (直向一般)</button>
+            <button class="btn-ratio" onclick="setExportRatio('4:3', this)">4:3 (橫向一般)</button>
         </div>
 
         <div class="preview-wrapper" id="previewWrapper">
+            <!-- 真實渲染 1080p 畫質地圖，並用 CSS 縮小預覽 -->
             <div id="exportMap"></div>
         </div>
 
@@ -288,50 +193,41 @@
     let exportMap, exportLayerGroup;
     let allLatLngsGlobal = []; 
     
+    // 定義四大真實高畫質像素比例
+    const RATIOS = {
+        '9:16': { w: 1080, h: 1920 },
+        '16:9': { w: 1920, h: 1080 },
+        '3:4': { w: 1200, h: 1600 },
+        '4:3': { w: 1600, h: 1200 }
+    };
+    let currentExportConfig = RATIOS['9:16'];
+    
     const colors = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#008080', '#e6beff', '#9a6324', '#800000'];
     const gpxColors = ['#FF1493', '#00BFFF', '#FF8C00', '#8A2BE2', '#32CD32', '#FF0000', '#00FFFF'];
     let gpxDataList = [];
 
-    // ================= 全局標籤顯示狀態設定 =================
-    const labelConfig = {
-        showGpx: true,
-        showFolder: true,
-        showSubName: true
-    };
+    const labelConfig = { showGpx: true, showFolder: true, showSubName: true };
 
     // ================= 初始化主地圖 =================
     function initMap() {
         map = L.map('map', { renderer: L.canvas({ padding: 0.5 }) }).setView([23.6, 121], 7);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(map);
         mapLayerGroup = L.layerGroup().addTo(map);
-        
-        // 加入地圖右上角的「懸浮標籤設定選單」
-        addLabelControl();
-        addFolder();
+        addLabelControl(); addFolder();
     }
 
-    // ================= 建立懸浮標籤控制選單 (右上角) =================
+    // ================= 懸浮標籤控制選單 =================
     function addLabelControl() {
         L.Control.Labels = L.Control.extend({
             onAdd: function(map) {
                 const div = L.DomUtil.create('div', 'leaflet-control-labels leaflet-bar');
                 div.innerHTML = `
-                    <div class="labels-menu-header" tabindex="0">
-                        👁️ 標籤顯示設定 ▼
-                    </div>
+                    <div class="labels-menu-header" tabindex="0">👁️ 標籤顯示設定 ▼</div>
                     <div class="labels-menu-content">
-                        <label class="label-toggle-item">
-                            <input type="checkbox" id="toggleGpx" checked onchange="updateLabelConfig()"> 顯示 GPX 代號
-                        </label>
-                        <label class="label-toggle-item">
-                            <input type="checkbox" id="toggleFolder" checked onchange="updateLabelConfig()"> 顯示 群組名稱 (如: 台北)
-                        </label>
-                        <label class="label-toggle-item">
-                            <input type="checkbox" id="toggleSub" checked onchange="updateLabelConfig()"> 顯示 分組編號 (如: A1)
-                        </label>
-                    </div>
-                `;
-                // 阻止點擊選單時觸發地圖拖曳
+                        <label class="label-toggle-item"><input type="checkbox" id="toggleGpx" checked onchange="updateLabelConfig()"> 顯示 GPX 代號</label>
+                        <label class="label-toggle-item"><input type="checkbox" id="toggleFolder" checked onchange="updateLabelConfig()"> 顯示 群組名稱 (如: 台北)</label>
+                        <label class="label-toggle-item"><input type="checkbox" id="toggleSub" checked onchange="updateLabelConfig()"> 顯示 分組編號 (如: A1)</label>
+                    </div>`;
                 L.DomEvent.disableClickPropagation(div);
                 return div;
             }
@@ -339,44 +235,35 @@
         new L.Control.Labels({ position: 'topright' }).addTo(map);
     }
 
-    // 當懸浮選單的勾選狀態改變時，更新狀態並重繪地圖
     function updateLabelConfig() {
         labelConfig.showGpx = document.getElementById('toggleGpx').checked;
         labelConfig.showFolder = document.getElementById('toggleFolder').checked;
         labelConfig.showSubName = document.getElementById('toggleSub').checked;
         renderMap();
-        
-        // 如果預覽視窗開著，連動更新預覽視窗
         if (exportMap && document.getElementById('exportModal').style.display === 'flex') {
             drawFeaturesToLayer(exportLayerGroup);
         }
     }
 
-    // ================= 側邊欄收合功能 =================
     function toggleSidebar() {
         const sidebar = document.getElementById('sidebarPanel');
         sidebar.classList.toggle('collapsed');
-        setTimeout(() => { map.invalidateSize(); }, 300); // 動畫結束後重設尺寸
+        setTimeout(() => { map.invalidateSize(); }, 300);
     }
 
-    // ================= 核心：智慧繪圖與標籤動態組合邏輯 =================
+    // ================= 核心：繪製圖層與組合邏輯 =================
     function drawFeaturesToLayer(targetLayerGroup) {
         targetLayerGroup.clearLayers();
         const allLatLngs = [];
         
-        // 1. 繪製 GPX
         gpxDataList.forEach(gpx => {
             if (!gpx.visible || gpx.points.length === 0) return;
             gpx.points.forEach(pt => allLatLngs.push(pt));
-            
-            // 【標籤組合邏輯】依據開關決定是否顯示 GPX 代號
             const displayLabel = labelConfig.showGpx ? (gpx.customId || "未命名GPX") : "";
-
             const step = Math.ceil(gpx.points.length / 150);
             for (let i = 0; i < gpx.points.length; i += step) {
                 L.circleMarker(gpx.points[i], { radius: 4, color: gpx.color, fillColor: gpx.color, fillOpacity: 0.8 }).addTo(targetLayerGroup);
             }
-
             if (gpx.points.length >= 3) {
                 const turfPointsArray = gpx.points.map(pt => [pt[1], pt[0]]);
                 const turfPoints = turf.featureCollection(turfPointsArray.map(p => turf.point(p)));
@@ -395,20 +282,16 @@
             }
         });
 
-        // 2. 繪製手動群組
         let colorIndex = 0;
         document.querySelectorAll('.folder').forEach(folder => {
             const folderName = folder.querySelector('.input-folder-name').value.trim();
             folder.querySelectorAll('.sub-group').forEach(sg => {
                 if (!sg.querySelector('.sub-checkbox').checked) return; 
-
                 const numStr = sg.querySelector('.input-sub-num').value.trim() || '01';
-                
-                // 【標籤組合邏輯】依據開關決定手動群組標籤的字詞組成
                 let textParts = [];
                 if (labelConfig.showFolder && folderName) textParts.push(folderName);
                 if (labelConfig.showSubName && numStr) textParts.push(numStr);
-                const fullDisplayCode = textParts.join(''); // 例如 "台北" + "A1" = "台北A1"；或只剩 "A1"
+                const fullDisplayCode = textParts.join('');
 
                 const coordsText = sg.querySelector('.textarea-coords').value.trim();
                 if (!coordsText) return; 
@@ -421,7 +304,6 @@
                         if (!isNaN(lat) && !isNaN(lng)) validCoords.push([lat, lng]);
                     }
                 });
-
                 if (validCoords.length === 0) return;
                 const color = colors[colorIndex % colors.length]; colorIndex++;
 
@@ -449,14 +331,12 @@
         return allLatLngs;
     }
 
-    // 【核心修復】自動收縮寬度的防偏移標籤
     function addMapLabel(targetGroup, coord, text, borderColor) {
         L.marker(coord, {
             icon: L.divIcon({
                 className: 'leaflet-custom-div-icon',
                 html: `<div class="label-wrapper"><div class="area-label" style="border-color:${borderColor};">${text}</div></div>`,
-                iconSize: [0, 0], // 設定錨點容器為 0x0 避免 html2canvas 算錯
-                iconAnchor: [0, 0]
+                iconSize: [0, 0], iconAnchor: [0, 0]
             }), interactive: false
         }).addTo(targetGroup);
     }
@@ -471,76 +351,131 @@
         }
     }
 
-    // ================= 預覽視窗與動態比例邏輯 =================
+    // ================= 預覽視窗與【無敵手機防裁切 + 深色浮水印】邏輯 =================
     function openExportModal() {
         document.getElementById('exportModal').style.display = 'flex';
         
         if (!exportMap) {
-            exportMap = L.map('exportMap', { preserveDrawingBuffer: true, renderer: L.canvas({ padding: 0.5 }) });
+            exportMap = L.map('exportMap', { preserveDrawingBuffer: true, renderer: L.canvas({ padding: 0.5 }), zoomControl: false });
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(exportMap);
             exportLayerGroup = L.layerGroup().addTo(exportMap);
+            
+            // 加入浮水印 Control
+            L.Control.Watermark = L.Control.extend({
+                onAdd: function(map) {
+                    const div = L.DomUtil.create('div', 'leaflet-control-watermark');
+                    div.id = 'watermarkDisplay';
+                    div.style.display = 'none';
+                    return div;
+                }
+            });
+            new L.Control.Watermark({ position: 'bottomright' }).addTo(exportMap);
         }
         
         drawFeaturesToLayer(exportLayerGroup);
+        updateWatermark();
         
-        // 預設比例 9:16
         const defaultBtn = document.querySelector('.btn-ratio');
-        setExportRatio(9, 16, defaultBtn);
+        setExportRatio('9:16', defaultBtn);
     }
 
     function closeExportModal() {
         document.getElementById('exportModal').style.display = 'none';
     }
 
-    function setExportRatio(widthRatio, heightRatio, btn) {
+    // 更新浮水印文字
+    function updateWatermark() {
+        const text = document.getElementById('watermarkInput').value.trim();
+        const wm = document.getElementById('watermarkDisplay');
+        if(wm) {
+            if(text) { wm.style.display = 'block'; wm.textContent = text; } 
+            else { wm.style.display = 'none'; }
+        }
+    }
+
+    // 設定真實像素尺寸，並用 CSS 縮小適應手機預覽框
+    function setExportRatio(ratioKey, btn) {
         document.querySelectorAll('.btn-ratio').forEach(b => b.classList.remove('active'));
         if(btn) btn.classList.add('active');
+
+        currentExportConfig = RATIOS[ratioKey];
+        const targetW = currentExportConfig.w;
+        const targetH = currentExportConfig.h;
 
         const wrapper = document.getElementById('previewWrapper');
         const mapEl = document.getElementById('exportMap');
         
-        const wrapperAspect = wrapper.clientWidth / wrapper.clientHeight;
-        const targetAspect = widthRatio / heightRatio;
+        mapEl.style.width = targetW + 'px';
+        mapEl.style.height = targetH + 'px';
 
-        if (targetAspect > wrapperAspect) {
-            mapEl.style.width = '100%';
-            mapEl.style.height = (wrapper.clientWidth / targetAspect) + 'px';
-        } else {
-            mapEl.style.height = '100%';
-            mapEl.style.width = (wrapper.clientHeight * targetAspect) + 'px';
-        }
+        const scaleW = wrapper.clientWidth / targetW;
+        const scaleH = wrapper.clientHeight / targetH;
+        const scale = Math.min(scaleW, scaleH) * 0.95;
 
-        // 預覽時將邊距壓到極限 15px，完美最大化畫面
+        mapEl.style.transform = `translate(-50%, -50%) scale(${scale})`;
+
         setTimeout(() => {
             exportMap.invalidateSize();
             if (allLatLngsGlobal.length > 0) {
-                exportMap.fitBounds(L.latLngBounds(allLatLngsGlobal), { padding: [15, 15], animate: false });
+                exportMap.fitBounds(L.latLngBounds(allLatLngsGlobal), { padding: [40, 40], animate: false });
             }
         }, 50);
     }
 
+    // ================= 智能動態命名與獨立圖層截圖 =================
     function executeExport() {
         const btn = document.getElementById('btnConfirmExport');
         const orig = btn.innerHTML;
-        btn.innerHTML = '⏳ 處理中...';
+        btn.innerHTML = '⏳ 繪製高畫質原圖中...';
         btn.disabled = true;
 
         const mapEl = document.getElementById('exportMap');
         
-        html2canvas(mapEl, { 
-            useCORS: true, allowTaint: false, scale: 3, backgroundColor: '#e5e7eb',
-            scrollX: 0, scrollY: 0, width: mapEl.clientWidth, height: mapEl.clientHeight
-        }).then(canvas => {
-            const imgUrl = canvas.toDataURL('image/png');
-            const a = document.createElement('a');
-            a.href = imgUrl; a.download = `座標分佈構圖_${new Date().toISOString().slice(0,10)}.png`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            closeExportModal();
-        }).catch(err => {
-            alert('擷取失敗！建議使用電腦內建截圖工具。');
-        }).finally(() => {
-            btn.innerHTML = orig; btn.disabled = false;
-        });
+        // 1. 黑底載入畫面
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.style.cssText = 'position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.85); color: white; z-index: 99999; display: flex; justify-content: center; align-items: center; font-size: 18px; font-weight: bold; flex-direction: column; gap: 15px;';
+        loadingOverlay.innerHTML = '<div style="font-size:40px;">📸</div><div>正在繪製無損高畫質原圖，請保持螢幕開啟...</div>';
+        document.body.appendChild(loadingOverlay);
+
+        const oldCssText = mapEl.style.cssText;
+        
+        // 2. 解除縮放，還原真實高畫質尺寸進行截圖
+        mapEl.style.cssText = `width: ${currentExportConfig.w}px; height: ${currentExportConfig.h}px; position: fixed; top: 0; left: 0; transform: none !important; z-index: 99990;`;
+        
+        exportMap.invalidateSize();
+
+        setTimeout(() => {
+            html2canvas(mapEl, { 
+                useCORS: true, 
+                allowTaint: false, 
+                scale: 1.5,
+                backgroundColor: '#e5e7eb',
+                logging: false,
+                width: currentExportConfig.w,
+                height: currentExportConfig.h
+            }).then(canvas => {
+                const imgUrl = canvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                
+                // 【核心防呆命名邏輯】：利用正則表達式把違規符號替換成底線 "_"
+                const rawName = document.getElementById('watermarkInput').value.trim();
+                const safeName = rawName ? rawName.replace(/[\\/:*?"<>|]/g, '_') : '地圖輸出';
+                const dateStr = new Date().toISOString().slice(0,10); // 取得 2026-08-21 格式
+                const fileName = `${safeName}_${dateStr}.png`;
+                
+                a.href = imgUrl; 
+                a.download = fileName; // 套用智能檔名
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            }).catch(err => {
+                alert('擷取失敗！建議使用電腦內建截圖工具。');
+            }).finally(() => {
+                mapEl.style.cssText = oldCssText;
+                exportMap.invalidateSize();
+                document.body.removeChild(loadingOverlay);
+                btn.innerHTML = orig; btn.disabled = false;
+                closeExportModal();
+            });
+        }, 800);
     }
 
     // ================= 以下為基礎表單操作與匯出，均保持最佳化邏輯 =================
