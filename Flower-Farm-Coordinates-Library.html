@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>座標資料庫系統 (Glassmorphism)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.js"></script>
+  
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    body {
+      background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+      background-attachment: fixed;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    }
+    
+    .glass-input {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      transition: all 0.3s ease;
+    }
+    .glass-input:focus {
+      outline: none;
+      border-color: rgba(96, 165, 250, 0.6);
+      background: rgba(0, 0, 0, 0.4);
+      box-shadow: 0 0 10px rgba(96, 165, 250, 0.3);
+    }
+    .glass-input option {
+      background: #203a43;
+      color: #fff;
+    }
+
+    .glass-hover:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  </style>
+
+  <script>
+    // ==========================================
+    // 1. 系統設定與全域變數
+    // ==========================================
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbx_2fMe7cOneUJodEfJR49Ncv0kc-em2EZhvc19a35_ZJPB05YS8-AysTSa2Yy-aP_4SQ/exec";
+    const PASSWORD = "1234";
+    const PAGE_SIZE = 20;
+    
+    let allData = [];
+    let filteredData = [];
+    let currentPage = 1;
+    let currentMap = null;
+    let mapMarkers = [];
+    let mapPolyline = null;
+    let tempCoords = [];
+    let cn2twConverter = null;
+    let isRecycleMode = false;
+
+    window.onload = () => {
+      initSerialDropdown();
+      initConverter();
+      fetchData(false);
+      document.getElementById('searchInput').addEventListener('input', applyFilters);
+    };
+
+    async function initConverter() {
+      try {
+        if (window.OpenCC) cn2twConverter = OpenCC.Converter({ from: 'cn', to: 'tw' });
+      } catch (e) {
+        console.warn("簡轉繁模組未就緒");
+      }
+    }
+
+    async function callAPI(payload) {
+      const response = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      return await response.json();
+    }
+
+    function initSerialDropdown() {
+      const select = document.getElementById('formSerial');
+      let options = `<option value="">請選擇序號 (00-99)</option>`;
+      for (let i = 0; i <= 99; i++) {
+        const val = i.toString().padStart(2, '0');
+        options += `<option value="${val}">${val}</option>`;
+      }
+      select.innerHTML = options;
+    }
+
+    async function fetchData(isRecycle = false) {
+      isRecycleMode = isRecycle;
+      document.getElementById('loading').classList.remove('hidden');
+      try {
+        const res = await callAPI({ action: isRecycle ? 'getRecycleData' : 'getData' });
+        if (res.status === "error") throw new Error(res.message);
+        allData = res.data || [];
+        filteredData = [...allData];
+        currentPage = 1;
+        if (!isRecycle) updateDropdowns();
+        renderTable(isRecycle);
+      } catch (err) {
+        alert("資料載入失敗！請確認網路連線與 Google 雲端設定。");
+      }
+      document.getElementById('loading').classList.add('hidden');
+    }
+
+    function updateDropdowns() {
+      const editors = [...new Set(allData.map(d => d.editor).filter(Boolean))];
+      const countries = [...new Set(allData.map(d => d.country).filter(Boolean))];
+      const cities = [...new Set(allData.map(d => d.city).filter(Boolean))];
+
+      populateSelect('filterEditor', editors, '所有編輯人');
+      populateSelect('filterCountry', countries, '所有國家');
+      populateSelect('filterCity', cities, '所有城市');
+    }
+
+    function populateSelect(id, items, defaultText) {
+      const select = document.getElementById(id);
+      select.innerHTML = `<option value="">${defaultText}</option>` + 
+                         items.map(item => `<option value="${item}">${item}</option>`).join('');
+    }
+
+    function applyFilters() {
+      const keyword = document.getElementById('searchInput').value.toLowerCase();
+      const editor = document.getElementById('filterEditor').value;
+      const country = document.getElementById('filterCountry').value;
+      const city = document.getElementById('filterCity').value;
+
+      filteredData = allData.filter(d => {
+        const matchKey = !keyword || Object.values(d).join(' ').toLowerCase().includes(keyword);
+        const matchEditor = !editor || d.editor === editor;
+        const matchCountry = !country || d.country === country;
+        const matchCity = !city || d.city === city;
+        return matchKey && matchEditor && matchCountry && matchCity;
+      });
+      currentPage = 1;
+      renderTable(isRecycleMode);
+    }
+
+    function changePage(delta) {
+      const maxPage = Math.ceil(filteredData.length / PAGE_SIZE);
+      if (currentPage + delta > 0 && currentPage + delta <= maxPage) {
+        currentPage += delta;
+        renderTable(isRecycleMode);
+        window.scrollTo(0, 0);
+      }
+    }
+
+    // ==========================================
+    // 4. 畫面渲染
+    // ==========================================
+    function renderTable(isRecycle = false) {
+      const tbody = document.getElementById(isRecycle ? 'recycleTableBody' : 'mainTableBody');
+      if(!tbody) return;
+      tbody.innerHTML = '';
+      
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const end = start + PAGE_SIZE;
+      const pageData = filteredData.slice(start, end);
+
+      if(pageData.length === 0) {
+        tbody.innerHTML = `<div class="p-6 text-center text-gray-400 glass-panel md:border-b-0 md:rounded-b-xl">尚無資料</div>`;
+      }
+
+      pageData.forEach(data => {
+        const coordsArr = (data.coords || "").split('\n').filter(Boolean);
+        const firstCoord = coordsArr[0] || '';
+        
+        let actionButtons = isRecycle 
+          ? `<button onclick="restoreData('${data.id}')" class="bg-emerald-500/80 hover:bg-emerald-400 text-white px-3 py-1 rounded shadow text-xs backdrop-blur">還原</button>`
+          : `<button onclick="openForm('${data.id}')" class="bg-blue-500/80 hover:bg-blue-400 text-white px-2 py-1 rounded text-xs shadow backdrop-blur border border-blue-400/30">編輯</button>
+             <button onclick="deleteData('${data.id}')" class="bg-red-500/80 hover:bg-red-400 text-white px-2 py-1 rounded text-xs shadow backdrop-blur border border-red-400/30">刪除</button>
+             <button onclick="openMapPreview('${data.id}')" class="bg-fuchsia-500/80 hover:bg-fuchsia-400 text-white px-2 py-1 rounded text-xs shadow backdrop-blur border border-fuchsia-400/30">地圖</button>
+             <button onclick="copyCoords('${data.id}')" class="bg-gray-500/80 hover:bg-gray-400 text-white px-2 py-1 rounded text-xs shadow backdrop-blur border border-gray-400/30">複製</button>
+             <button onclick="exportGPX('${data.id}')" class="bg-cyan-500/80 hover:bg-cyan-400 text-white px-2 py-1 rounded text-xs shadow backdrop-blur border border-cyan-400/30">GPX</button>`;
+
+        tbody.innerHTML += `
+          <div class="glass-panel p-4 md:p-3 rounded-xl md:rounded-none border-b border-white/10 md:grid md:grid-cols-12 md:gap-2 items-center text-sm glass-hover transition-colors mb-4 md:mb-0">
+            <div class="flex flex-wrap md:contents gap-x-3 gap-y-1 items-center mb-2 md:mb-0">
+              <div class="col-span-1 font-bold text-lg md:text-sm md:font-normal text-blue-300 md:text-gray-100 truncate">${data.editor || '-'}</div>
+              <div class="col-span-1 text-gray-300 truncate">${data.country || '-'}</div>
+              <div class="col-span-2 text-gray-300 truncate">${data.city || '-'}</div>
+              <div class="col-span-1"><span class="bg-yellow-500/20 border border-yellow-500/50 text-yellow-200 px-2 py-0.5 rounded text-xs font-bold md:font-normal">${data.serial || '-'}</span></div>
+              <div class="col-span-1 text-gray-400 font-mono text-xs md:text-sm">${data.timeDiff || '-'}</div>
+            </div>
+
+            <div class="col-span-2 mt-2 md:mt-0 bg-black/20 md:bg-transparent p-2 md:p-0 rounded border border-white/5 md:border-0">
+               <div class="flex items-center gap-1 mb-1">
+                 <span class="bg-blue-900/50 border border-blue-500/30 text-blue-200 text-xs px-2 py-0.5 rounded-full">${data.count || 0}組</span>
+                 ${coordsArr.length > 1 ? `<button onclick="toggleCoords('${data.id}')" class="text-blue-400 hover:text-blue-300 underline text-xs">展開</button>` : ''}
+               </div>
+               <div class="truncate text-xs font-mono text-gray-400" id="coord-preview-${data.id}">${firstCoord}</div>
+               <div id="coord-full-${data.id}" class="hidden mt-1 whitespace-pre-wrap font-mono text-xs text-gray-300 bg-black/30 p-2 rounded border border-white/10">${coordsArr.map((c, i) => `${i+1}. ${c}`).join('\n')}</div>
+            </div>
+
+            <div class="col-span-2 mt-2 md:mt-0 text-gray-400 text-xs md:text-sm break-words leading-snug">
+              ${data.notes || '-'}
+            </div>
+
+            <div class="col-span-2 mt-3 md:mt-0 flex flex-wrap md:justify-center gap-1">
+              ${actionButtons}
+            </div>
+          </div>
+        `;
+      });
+      const infoEl = document.getElementById(isRecycle ? 'recyclePageInfo' : 'pageInfo');
+      if(infoEl) infoEl.innerText = `第 ${currentPage} 頁 / 共 ${Math.ceil(filteredData.length / PAGE_SIZE) || 1} 頁 (總計 ${filteredData.length} 筆)`;
+    }
+
+    function toggleCoords(id) {
+      document.getElementById(`coord-full-${id}`).classList.toggle('hidden');
+    }
+
+    // ==========================================
+    // 5. 新增/修改/刪除/還原
+    // ==========================================
+    let currentEditId = null;
+    function openForm(id = null) {
+      currentEditId = id;
+      document.getElementById('formModal').classList.remove('hidden');
+      
+      if (id) {
+        const d = allData.find(x => x.id === id);
+        if (d) {
+          document.getElementById('formSerial').value = String(d.serial || '').padStart(2, '0');
+          document.getElementById('formEditor').value = d.editor || '';
+          document.getElementById('formCountry').value = d.country || '';
+          document.getElementById('formCity').value = d.city || '';
+          document.getElementById('formTimeDiff').value = d.timeDiff || '';
+          document.getElementById('formCoords').value = d.coords || '';
+          document.getElementById('formNotes').value = d.notes || '';
+        }
+      } else {
+        document.getElementById('dataForm').reset();
+      }
+    }
+
+    function closeForm() {
+      document.getElementById('formModal').classList.add('hidden');
+    }
+
+    async function saveData() {
+      const coordsVal = document.getElementById('formCoords').value.trim();
+      const payload = {
+        action: currentEditId ? 'update' : 'create',
+        data: {
+          id: currentEditId,
+          serial: document.getElementById('formSerial').value,
+          editor: document.getElementById('formEditor').value,
+          country: document.getElementById('formCountry').value,
+          city: document.getElementById('formCity').value,
+          timeDiff: document.getElementById('formTimeDiff').value,
+          coords: coordsVal,
+          count: coordsVal.split('\n').filter(Boolean).length,
+          notes: document.getElementById('formNotes').value
+        }
+      };
+      
+      document.getElementById('loading').classList.remove('hidden');
+      try {
+        const res = await callAPI(payload);
+        if(res.status === 'success') {
+          closeForm();
+          fetchData(isRecycleMode);
+        } else {
+          alert("儲存失敗：" + res.message);
+        }
+      } catch (e) {
+        alert("儲存連線失敗，請再試一次。");
+      }
+      document.getElementById('loading').classList.add('hidden');
+    }
+
+    async function deleteData(id) {
+      if (prompt("請輸入密碼以刪除資料 (保留30天):") !== PASSWORD) {
+        alert("密碼錯誤！"); return;
+      }
+      document.getElementById('loading').classList.remove('hidden');
+      await callAPI({ action: 'delete', id });
+      fetchData(false);
+    }
+
+    function enterRecycleBin() {
+      if (prompt("請輸入密碼進入資源回收桶:") !== PASSWORD) {
+        alert("密碼錯誤！"); return;
+      }
+      document.getElementById('mainUI').classList.add('hidden');
+      document.getElementById('recycleUI').classList.remove('hidden');
+      fetchData(true);
+    }
+    
+    function exitRecycleBin() {
+      document.getElementById('mainUI').classList.remove('hidden');
+      document.getElementById('recycleUI').classList.add('hidden');
+      fetchData(false);
+    }
+
+    async function restoreData(id) {
+      document.getElementById('loading').classList.remove('hidden');
+      await callAPI({ action: 'restore', id });
+      fetchData(true);
+    }
+
+    // ==========================================
+    // 7. GPX 匯入/匯出與帶抬頭複製
+    // ==========================================
+    async function copyCoords(id) {
+      const data = allData.find(x => x.id === id);
+      if (!data) return;
+
+      const coords = data.coords || '';
+      const count = data.count || coords.split('\n').filter(Boolean).length;
+      
+      // 組合抬頭：編輯人_國家_城市_序號_組數(朵)
+      const headerParts = [
+        data.editor,
+        data.country,
+        data.city,
+        data.serial,
+        `${count}(朵)`
+      ].filter(Boolean);
+
+      const header = headerParts.join('_');
+      const textToCopy = `${header}\n${coords}`;
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(textToCopy);
+          alert("座標（含抬頭資訊）已複製！");
+        } else {
+          fallbackCopyTextToClipboard(textToCopy);
+        }
+      } catch (err) {
+        fallbackCopyTextToClipboard(textToCopy);
+      }
+    }
+
+    function fallbackCopyTextToClipboard(text) {
+      var textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed"; textArea.style.top = "0"; textArea.style.left = "0";
+      document.body.appendChild(textArea);
+      textArea.focus(); textArea.select();
+      try {
+        if (document.execCommand('copy')) alert("座標（含抬頭資訊）已複製！");
+        else alert("複製失敗，請手動選取複製");
+      } catch (err) {
+        alert("瀏覽器不支援複製，請手動選取");
+      }
+      document.body.removeChild(textArea);
+    }
+
+    function exportGPX(id) {
+      const data = allData.find(x => x.id === id);
+      if (!data) return;
+
+      const coords = data.coords || '';
+      const count = data.count || coords.split('\n').filter(Boolean).length;
+
+      const nameParts = [
+        data.editor,
+        data.country,
+        data.city,
+        data.serial,
+        data.timeDiff ? `時差${data.timeDiff}` : '',
+        `${count}(朵)`
+      ].filter(Boolean);
+
+      const defaultFileName = nameParts.join('_') || 'export';
+      const userFileName = prompt("請確認或修改 GPX 下載檔名 (副檔名 .gpx 會自動附加):", defaultFileName);
+      if (userFileName === null) return;
+
+      const finalFileName = (userFileName.trim() || defaultFileName) + '.gpx';
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="座標系統">`;
+      coords.split('\n').filter(Boolean).forEach((c, i) => {
+        const [lat, lon] = c.split(',').map(x => x.trim());
+        if(lat && lon) xml += `<wpt lat="${lat}" lon="${lon}"><name>${String(i+1).padStart(2, '0')}</name></wpt>`;
+      });
+      xml += `</gpx>`;
+
+      const blob = new Blob([xml], { type: 'application/gpx+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none'; 
+      a.href = url; 
+      a.download = finalFileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
+    }
+
+    function handleGPXImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(e.target.result, "text/xml");
+          const points = xml.querySelectorAll("wpt, trkpt");
+          let coordsArr = [];
+          points.forEach(p => {
+            const lat = p.getAttribute('lat');
+            const lon = p.getAttribute('lon');
+            if(lat && lon) coordsArr.push(`${lat}, ${lon}`);
+          });
+
+          if(coordsArr.length === 0) {
+            alert("此 GPX 檔案內未找到有效的航點或軌跡點！");
+            return;
+          }
+
+          openForm(null);
+          document.getElementById('formCoords').value = coordsArr.join('\n');
+          alert(`成功解析 GPX！已載入 ${coordsArr.length} 組座標，您可以補充填寫資料後點擊儲存。`);
+        } catch(err) {
+          alert("GPX 檔案解析失敗，請確認檔案格式！");
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    // ==========================================
+    // 8. OpenStreetMap 自動辨識
+    // ==========================================
+    async function autoDetect() {
+      const coordsVal = document.getElementById('formCoords').value.trim();
+      if (!coordsVal) return alert("請先輸入座標！");
+      const firstCoord = coordsVal.split('\n')[0];
+      const [lat, lon] = firstCoord.split(',').map(Number);
+      
+      try {
+        document.getElementById('autoDetectBtn').innerText = "辨識中...";
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=zh-TW,en`);
+        const data = await res.json();
+        
+        if (data.address) {
+          let country = data.address.country || "";
+          let city = data.address.city || data.address.town || data.address.state || "";
+          let enCity = data.address.city_en || ""; 
+          
+          if(cn2twConverter) {
+            country = cn2twConverter(country);
+            city = cn2twConverter(city);
+          }
+          
+          document.getElementById('formCountry').value = country;
+          document.getElementById('formCity').value = `${city} ${enCity}`.trim();
+          
+          const offsetHours = Math.round(lon / 15);
+          const diff = offsetHours - 8;
+          document.getElementById('formTimeDiff').value = diff > 0 ? `+${diff}` : diff;
+        }
+      } catch (e) {
+        alert("自動辨識失敗，請稍後再試。");
+      }
+      document.getElementById('autoDetectBtn').innerText = "📍 自動辨識國家/城市/時差";
+    }
+
+    // ==========================================
+    // 9. 地圖預覽、連線與變色
+    // ==========================================
+    let mapEditId = null;
+    function openMapPreview(id) {
+      mapEditId = id;
+      const data = allData.find(x => x.id === id);
+      tempCoords = (data.coords || "").split('\n').filter(Boolean);
+      
+      document.getElementById('mapModal').classList.remove('hidden');
+      renderMapList();
+      initMap();
+    }
+
+    function closeMapPreview() {
+      document.getElementById('mapModal').classList.add('hidden');
+      if (currentMap) { currentMap.remove(); currentMap = null; }
+    }
+
+    function initMap() {
+      if (currentMap) { currentMap.remove(); }
+      currentMap = L.map('mapView').setView([25.033, 121.565], 2);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(currentMap);
+      drawMapElements();
+    }
+
+    function drawMapElements() {
+      mapMarkers.forEach(m => currentMap.removeLayer(m));
+      if (mapPolyline) currentMap.removeLayer(mapPolyline);
+      mapMarkers = [];
+      const latlngs = [];
+      let totalDistance = 0;
+      
+      tempCoords.forEach((c, index) => {
+        const [lat, lon] = c.split(',').map(Number);
+        if(lat && lon){
+          const latlng = L.latLng(lat, lon);
+          latlngs.push(latlng);
+          if(index > 0) totalDistance += latlngs[index-1].distanceTo(latlng);
+
+          const icon = L.divIcon({
+            className: 'custom-icon',
+            html: `<div id="marker-icon-${index}" class="bg-blue-600/90 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold border-2 border-white/80 shadow-lg backdrop-blur transition-colors">${index + 1}</div>`,
+            iconSize: [28, 28], iconAnchor: [14, 14]
+          });
+          const marker = L.marker([lat, lon], {icon: icon}).addTo(currentMap);
+          mapMarkers.push(marker);
+        }
+      });
+      
+      if (latlngs.length > 1) {
+        mapPolyline = L.polyline(latlngs, {color: '#00f2fe', weight: 3, opacity: 0.7, dashArray: '5, 10'}).addTo(currentMap);
+      }
+
+      document.getElementById('mapDistance').innerText = `總連線距離: ${(totalDistance / 1000).toFixed(2)} km`;
+      if (latlngs.length > 0) currentMap.fitBounds(latlngs, {padding: [40, 40]});
+    }
+
+    function highlightMarker(index) {
+      tempCoords.forEach((_, i) => {
+        const el = document.getElementById(`marker-icon-${i}`);
+        if(el) {
+          if (i === index) {
+            el.className = "bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold border-2 border-white shadow-[0_0_15px_rgba(239,68,68,0.8)] backdrop-blur transition-all scale-110";
+          } else {
+            el.className = "bg-blue-600/90 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold border-2 border-white/80 shadow-lg backdrop-blur transition-all";
+          }
+        }
+      });
+    }
+
+    function renderMapList() {
+      const list = document.getElementById('mapCoordList');
+      list.innerHTML = '';
+      tempCoords.forEach((c, i) => {
+        list.innerHTML += `
+          <div onclick="highlightMarker(${i})" class="flex justify-between items-center glass-panel border border-white/10 p-3 rounded mb-2 shadow-sm text-sm hover:bg-white/10 cursor-pointer transition-colors">
+            <span class="font-mono text-gray-200"><b>${i+1}.</b> ${c}</span>
+            <div class="flex gap-1">
+              <button onclick="event.stopPropagation(); moveCoord(${i}, -1)" class="bg-white/10 p-2 rounded hover:bg-white/20 text-white">⬆️</button>
+              <button onclick="event.stopPropagation(); moveCoord(${i}, 1)" class="bg-white/10 p-2 rounded hover:bg-white/20 text-white">⬇️</button>
+              <button onclick="event.stopPropagation(); removeCoord(${i})" class="bg-red-500/20 text-red-300 p-2 rounded hover:bg-red-500/40">❌</button>
+            </div>
+          </div>
+        `;
+      });
+      if(currentMap) drawMapElements();
+    }
+
+    function moveCoord(index, dir) {
+      if (index + dir < 0 || index + dir >= tempCoords.length) return;
+      const temp = tempCoords[index];
+      tempCoords[index] = tempCoords[index + dir];
+      tempCoords[index + dir] = temp;
+      renderMapList();
+    }
+
+    function removeCoord(index) {
+      tempCoords.splice(index, 1);
+      renderMapList();
+    }
+
+    async function saveMapEdit() {
+      const data = allData.find(x => x.id === mapEditId);
+      const payload = {
+        action: 'update',
+        data: { ...data, coords: tempCoords.join('\n'), count: tempCoords.length }
+      };
+      document.getElementById('loading').classList.remove('hidden');
+      await callAPI(payload);
+      closeMapPreview();
+      fetchData(isRecycleMode);
+    }
+  </script>
+</head>
+<body class="font-sans antialiased">
+
+  <div id="loading" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="glass-panel px-6 py-4 rounded-lg shadow-2xl border border-white/20 text-lg font-bold text-white flex items-center gap-3">
+      <div class="w-5 h-5 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+      系統處理中...
+    </div>
+  </div>
+
+  <!-- 主系統介面 -->
+  <div id="mainUI" class="max-w-7xl mx-auto p-4 md:p-8">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 glass-panel p-5 rounded-2xl border-t-4 border-blue-400/80">
+      <h1 class="text-2xl font-bold text-white tracking-wide mb-4 md:mb-0">✨ 座標管理資料庫</h1>
+      <div class="flex flex-wrap gap-2">
+        <label class="bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-2 rounded cursor-pointer border border-white/20 backdrop-blur transition-all">
+          📥 匯入 GPX
+          <input type="file" accept=".gpx" class="hidden" onchange="handleGPXImport(event)">
+        </label>
+        <button onclick="openForm()" class="bg-blue-600/80 hover:bg-blue-500/80 text-white font-semibold px-4 py-2 rounded shadow backdrop-blur transition-all">+ 新增資料</button>
+        <button onclick="enterRecycleBin()" class="bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 font-semibold px-4 py-2 rounded shadow backdrop-blur transition-all border border-gray-600">🗑️ 垃圾桶</button>
+      </div>
+    </div>
+
+    <div class="glass-panel p-4 rounded-xl mb-6 flex flex-col md:flex-row gap-3">
+      <input type="text" id="searchInput" placeholder="🔍 全域搜尋 (關鍵字、座標...)" class="glass-input p-2 rounded flex-1">
+      <select id="filterEditor" onchange="applyFilters()" class="glass-input p-2 rounded"></select>
+      <select id="filterCountry" onchange="applyFilters()" class="glass-input p-2 rounded"></select>
+      <select id="filterCity" onchange="applyFilters()" class="glass-input p-2 rounded"></select>
+    </div>
+
+    <div class="mt-4">
+      <div class="hidden md:grid grid-cols-12 gap-2 bg-black/40 text-gray-300 p-3 rounded-t-xl text-sm font-bold border border-white/10 border-b-0">
+        <div class="col-span-1">編輯人</div>
+        <div class="col-span-1">國家</div>
+        <div class="col-span-2">城市</div>
+        <div class="col-span-1">序號</div>
+        <div class="col-span-1">時差</div>
+        <div class="col-span-2">座標</div>
+        <div class="col-span-2">備註</div>
+        <div class="col-span-2 text-center">操作</div>
+      </div>
+      <div id="mainTableBody" class="flex flex-col md:block"></div>
+    </div>
+
+    <div class="flex justify-between items-center glass-panel p-4 rounded-xl mt-4">
+      <button onclick="changePage(-1)" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded font-semibold border border-white/20">上一頁</button>
+      <span id="pageInfo" class="font-bold text-gray-300"></span>
+      <button onclick="changePage(1)" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded font-semibold border border-white/20">下一頁</button>
+    </div>
+  </div>
+
+  <!-- 資源回收桶介面 -->
+  <div id="recycleUI" class="max-w-7xl mx-auto p-4 md:p-8 hidden">
+    <div class="flex justify-between items-center mb-6 glass-panel p-5 rounded-xl border-t-4 border-red-500">
+      <h1 class="text-2xl font-bold text-gray-100">🗑️ 資源回收桶 (保留30天)</h1>
+      <button onclick="exitRecycleBin()" class="bg-gray-500/80 hover:bg-gray-400 text-white px-4 py-2 rounded shadow backdrop-blur">返回主系統</button>
+    </div>
+    <div class="mt-4">
+      <div class="hidden md:grid grid-cols-12 gap-2 bg-black/40 text-gray-300 p-3 rounded-t-xl text-sm font-bold border border-white/10 border-b-0">
+        <div class="col-span-1">編輯人</div>
+        <div class="col-span-1">國家</div>
+        <div class="col-span-2">城市</div>
+        <div class="col-span-1">序號</div>
+        <div class="col-span-1">時差</div>
+        <div class="col-span-2">座標</div>
+        <div class="col-span-2">備註</div>
+        <div class="col-span-2 text-center">操作</div>
+      </div>
+      <div id="recycleTableBody" class="flex flex-col md:block"></div>
+    </div>
+    <div class="flex justify-between items-center glass-panel p-4 rounded-xl mt-4">
+      <button onclick="changePage(-1)" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded font-semibold border border-white/20">上一頁</button>
+      <span id="recyclePageInfo" class="font-bold text-gray-300"></span>
+      <button onclick="changePage(1)" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded font-semibold border border-white/20">下一頁</button>
+    </div>
+  </div>
+
+  <!-- 新增/編輯 表單 Modal -->
+  <div id="formModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-40 hidden p-4">
+    <div class="glass-panel w-full max-w-2xl p-6 md:p-8 rounded-2xl max-h-[90vh] overflow-y-auto relative border border-white/20">
+      <button onclick="closeForm()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl transition-colors">&times;</button>
+      <h2 class="text-2xl font-bold mb-6 border-b border-white/20 pb-3 text-white">📝 資料編輯</h2>
+      
+      <form id="dataForm" class="grid grid-cols-1 md:grid-cols-2 gap-5" onsubmit="event.preventDefault(); saveData();">
+        <div>
+          <label class="block text-sm font-semibold text-gray-300 mb-1">編輯人</label>
+          <input type="text" id="formEditor" class="w-full glass-input p-2 rounded">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-semibold text-gray-300 mb-1 flex justify-between items-center">
+            <span>座標 (每行一組: 緯度, 經度)</span>
+            <button type="button" id="autoDetectBtn" onclick="autoDetect()" class="text-cyan-300 text-sm font-bold bg-cyan-900/40 px-3 py-1 rounded hover:bg-cyan-800/60 border border-cyan-500/30 transition-colors">📍 自動辨識國家/城市/時差</button>
+          </label>
+          <textarea id="formCoords" rows="5" class="w-full glass-input p-2 rounded font-mono" placeholder="25.033, 121.565&#10;25.044, 121.555"></textarea>
+        </div>
+        <div><label class="block text-sm font-semibold text-gray-300 mb-1">國家</label><input type="text" id="formCountry" class="w-full glass-input p-2 rounded"></div>
+        <div><label class="block text-sm font-semibold text-gray-300 mb-1">城市</label><input type="text" id="formCity" class="w-full glass-input p-2 rounded"></div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-300 mb-1">區域序號</label>
+          <select id="formSerial" class="w-full glass-input p-2 rounded"></select>
+        </div>
+        <div><label class="block text-sm font-semibold text-gray-300 mb-1">跨日時間 (與台北時差)</label><input type="text" id="formTimeDiff" class="w-full glass-input p-2 rounded"></div>
+        <div class="md:col-span-2"><label class="block text-sm font-semibold text-gray-300 mb-1">備註</label><input type="text" id="formNotes" class="w-full glass-input p-2 rounded"></div>
+      </form>
+      <div class="mt-8 flex justify-end gap-3">
+        <button onclick="closeForm()" class="bg-white/10 text-white hover:bg-white/20 font-semibold px-5 py-2 rounded border border-white/20">取消</button>
+        <button onclick="saveData()" class="bg-blue-600/80 text-white hover:bg-blue-500/80 font-semibold px-5 py-2 rounded shadow backdrop-blur">儲存資料</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 地圖 Modal -->
+  <div id="mapModal" class="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-40 hidden p-2 md:p-8">
+    <div class="glass-panel border border-white/20 w-full h-full md:h-[90vh] rounded-2xl flex flex-col md:flex-row overflow-hidden relative">
+      <div class="w-full md:w-2/3 h-1/2 md:h-full relative z-0">
+        <div id="mapDistance" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-black/60 backdrop-blur border border-cyan-400/50 text-cyan-200 px-4 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(0,242,254,0.3)] text-sm">總連線距離: 0.00 km</div>
+        <div id="mapView" class="w-full h-full"></div>
+      </div>
+      <div class="w-full md:w-1/3 h-1/2 md:h-full flex flex-col border-l border-white/10 bg-black/40 z-10">
+        <div class="p-4 bg-white/5 font-bold border-b border-white/10 text-gray-100 backdrop-blur flex justify-between items-center">
+          <span>微調排序與刪除</span>
+          <span class="text-xs text-cyan-300 font-normal">點擊列表，地圖點位變色</span>
+        </div>
+        <div id="mapCoordList" class="flex-1 overflow-y-auto p-4 no-scrollbar"></div>
+        <div class="p-4 bg-white/5 border-t border-white/10 flex justify-end gap-3 backdrop-blur">
+          <button onclick="closeMapPreview()" class="bg-white/10 text-white hover:bg-white/20 font-semibold px-4 py-2 rounded border border-white/20">取消</button>
+          <button onclick="saveMapEdit()" class="bg-purple-600/80 text-white hover:bg-purple-500/80 font-semibold px-4 py-2 rounded shadow backdrop-blur">💾 儲存地圖修改</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
