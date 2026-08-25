@@ -20,11 +20,10 @@
             --text-muted: #94a3b8;
         }
 
-        /* 解決手機版面撐破的核心設定 */
         * { box-sizing: border-box; }
         html, body {
             max-width: 100vw;
-            overflow-x: hidden; /* 嚴格禁止整個網頁出現橫向捲軸 */
+            overflow-x: hidden;
         }
 
         body { 
@@ -59,11 +58,7 @@
             align-items: start;
         }
 
-        /* 強制右側面板不可超過自身網格的寬度 */
-        .right-panel {
-            min-width: 0; 
-        }
-
+        .right-panel { min-width: 0; }
         .admin-group { margin-bottom: 20px; }
         .admin-group:last-child { margin-bottom: 0; }
 
@@ -97,7 +92,6 @@
         }
         .save-options label { color: var(--text-muted); font-size: 13px; margin-bottom: 6px; font-weight: normal; cursor: pointer;}
         
-        /* 讓表格只在自己的框框內產生橫向捲軸，加上滑順觸控滾動 */
         .table-container { 
             width: 100%;
             overflow-x: auto; 
@@ -112,7 +106,6 @@
         .member-col { white-space: nowrap; width: 1%; min-width: 130px; }
         .assigned-name { font-weight: bold; color: #000; padding: 4px 14px; border-radius: 6px; font-size: 13px; display:inline-block; }
         
-        /* 複製按鈕樣式 */
         .copy-btn { background: rgba(255,255,255,0.1); color: var(--text-main); padding: 6px 12px; border-radius: 6px; font-size: 12px; border: 1px solid var(--glass-border); white-space: nowrap; }
         .copy-btn.copied { background: var(--primary); color: #000; border-color: var(--primary); }
 
@@ -122,7 +115,6 @@
         #map { height: 500px; width: 100%; border-radius: 12px; z-index: 1; margin-top: 10px;}
         .map-number-icon { color: #000; border-radius: 50%; width: 24px; height: 24px; line-height: 24px; text-align: center; font-size: 12px; font-weight: bold; box-shadow: 0 0 10px rgba(255,255,255,0.3); border: 2px solid rgba(255,255,255,0.8); }
 
-        /* 手機版響應式滿版 */
         @media (max-width: 950px) { 
             body { padding: 10px; }
             .layout-grid { grid-template-columns: 1fr; gap: 10px; } 
@@ -132,11 +124,11 @@
     </style>
 </head>
 <body>
-<div class="container">
+<div class="container" id="mainContainer" style="display:none;">
     <h2>強開團座標分配工具</h2>
     
     <div id="collabHeader" class="glass-panel" style="margin-bottom: 20px;">
-        <h3 style="margin:0 0 5px 0; color:var(--warning);">🔗 共享任務模式 (代碼：<span id="displayCode"></span>)</h3>
+        <h3 id="collabHeaderTitle" style="margin:0 0 5px 0; color:var(--warning);">🔗 共享任務模式 (代碼：<span id="displayCode"></span>)</h3>
         <div id="expireTimeDisplay" style="font-size: 13px; color: var(--danger); margin-bottom: 12px;"></div>
         <div id="collabActions">
             <button id="btnUnlock" onclick="unlockTask()" class="btn-danger" style="width: auto; padding: 10px 25px; margin-top:0;">🔒 輸入密碼解鎖編輯</button>
@@ -206,7 +198,6 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // 使用最新無痛版的 Google Apps Script 網址
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxQsGBlN7_v2F8UWE1z3QFtymyfDuqGmBttKGUN3hCApUp9B2iZiY_CLuLwtxDBIN5--Q/exec"; 
     
     const defaultDatabase = {
@@ -228,19 +219,35 @@
     const colorPalette = ['#4ade80', '#60a5fa', '#f472b6', '#c084fc', '#fbbf24', '#38bdf8', '#fb7185', '#a7f3d0', '#fef08a', '#e879f9'];
 
     async function init() {
+        const urlParams = new URLSearchParams(window.location.search);
+        collabCode = urlParams.get('code');
+
+        // ==== 安全防護：如果是沒有 code 的主網頁，檢查管理者密碼 ====
+        if (!collabCode) {
+            let isAuth = sessionStorage.getItem('adminAuth');
+            if (isAuth !== 'true') {
+                let pwd = prompt("請輸入發起人管理密碼：");
+                if (pwd === "adminccfh") {
+                    sessionStorage.setItem('adminAuth', 'true');
+                } else {
+                    document.body.innerHTML = "<h2 style='text-align:center; margin-top:50px; color:var(--danger);'>⛔ 拒絕存取</h2><p style='text-align:center; color:var(--text-muted);'>密碼錯誤或已取消。</p>";
+                    return; // 停止執行後續程式碼
+                }
+            }
+        }
+
+        // 顯示主容器
+        document.getElementById('mainContainer').style.display = 'block';
+
         map = L.map('map').setView([0, 0], 2);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
         }).addTo(map);
         markersLayer.addTo(map);
 
-        const urlParams = new URLSearchParams(window.location.search);
-        collabCode = urlParams.get('code');
-
         if (collabCode) {
             isCollabMode = true;
             document.getElementById('collabHeader').style.display = 'block';
-            document.getElementById('displayCode').innerText = collabCode;
             document.getElementById('section1').style.display = 'none';
             document.getElementById('section3').style.display = 'none';
             document.getElementById('btnShare').style.display = 'none';
@@ -249,7 +256,6 @@
             await loadNormalDatabase();
         }
 
-        // 當視窗改變大小時，通知 Leaflet 地圖重新計算寬度，確保滿版
         window.addEventListener('resize', () => {
             if(map) map.invalidateSize();
         });
@@ -263,7 +269,6 @@
         return await fetch(url, fetchOptions);
     }
 
-    // --- 協作模式邏輯 ---
     async function loadSharedTask(code) {
         setUIRestriction(true); 
         try {
@@ -282,6 +287,12 @@
                 memberColorMap = collabData.colorMap || {};
                 collabRequiresPassword = json.hasPassword; 
                 
+                let titleHtml = `🔗 共享任務模式 (代碼：<span id="displayCode">${code}</span>)`;
+                if (collabData.flowerType && collabData.flowerType.trim() !== "") {
+                    titleHtml = `🔗 共享任務模式 - ${escapeHtml(collabData.flowerType)} (代碼：<span id="displayCode">${code}</span>)`;
+                }
+                document.getElementById('collabHeaderTitle').innerHTML = titleHtml;
+
                 if (json.expireTime) {
                     let d = new Date(json.expireTime);
                     let dateStr = `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
@@ -305,6 +316,10 @@
                 updateStats();
             } else { alert("❌ 任務不存在或已過期！"); }
         } catch(e) { console.error(e); alert("連線錯誤或權限不足"); }
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
     function setUIRestriction(locked) {
@@ -340,7 +355,15 @@
         
         const payload = {
             action: "updateTask", code: collabCode, password: collabPassword, nickname: nickname,
-            data: { fieldName: fieldName, coords: database[fieldName], memberInput: document.getElementById('batchMemberInput').value, assignMap: currentAssignMap, colorMap: memberColorMap, checkedStates: checks }
+            data: { 
+                fieldName: fieldName, 
+                coords: database[fieldName], 
+                memberInput: document.getElementById('batchMemberInput').value, 
+                assignMap: currentAssignMap, 
+                colorMap: memberColorMap, 
+                checkedStates: checks,
+                flowerType: collabData.flowerType || ""
+            }
         };
 
         try {
@@ -369,17 +392,28 @@
         let nickname = prompt("請輸入您的暱稱 (建立者)：");
         if (!nickname) return;
         
+        let flowerType = prompt("請輸入強開的花朵種類 (選填，例如：玫瑰花)：", "");
+        if (flowerType === null) return; 
+
         let pwd = prompt("請設定修改密碼 (若留空則任何人皆可直接編輯，但均能自由複製)：");
         let newCode = Math.floor(100000 + Math.random() * 900000).toString();
         const checks = Array.from(document.querySelectorAll('.row-check')).map(c => c.checked);
 
         const payload = {
             action: "shareTask", code: newCode, password: pwd || "", nickname: nickname,
-            data: { fieldName: fieldName, coords: database[fieldName], memberInput: document.getElementById('batchMemberInput').value, assignMap: currentAssignMap, colorMap: memberColorMap, checkedStates: checks }
+            data: { 
+                fieldName: fieldName, 
+                coords: database[fieldName], 
+                memberInput: document.getElementById('batchMemberInput').value, 
+                assignMap: currentAssignMap, 
+                colorMap: memberColorMap, 
+                checkedStates: checks,
+                flowerType: flowerType.trim() 
+            }
         };
 
         try {
-            document.getElementById('btnShare').innerText = "☁️ 產生連結中...";
+            document.getElementById('btnShare').innerText = "📤 產生連結中...";
             let res = await safeFetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
             let text = await res.text();
             let json;
@@ -588,7 +622,7 @@
         });
         if (bounds.length > 0) {
             map.fitBounds(bounds, {padding: [50, 50]});
-            setTimeout(() => map.invalidateSize(), 300); // 確保 Leaflet 完全重算一次
+            setTimeout(() => map.invalidateSize(), 300);
         }
     }
 
