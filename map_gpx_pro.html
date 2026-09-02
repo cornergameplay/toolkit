@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>座標分佈與 GPX 視覺化管理系統 (Pro v10 完美滿版版)</title>
+    <title>座標分佈視覺化系統 (Pro v11)</title>
     
     <!-- 引入 Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -101,38 +101,21 @@
         .btn-cancel { background: #94a3b8; }
         .btn-confirm { background: var(--primary); font-size: 14px; padding: 10px 20px; }
 
-        /* ================= 核心修復：手機滿版與右下角展開按鈕 ================= */
-        
-        /* 右下角圓形展開按鈕 (預設隱藏) */
+        /* ================= 手機滿版與展開按鈕 ================= */
         .fab-expand {
-            position: fixed;
-            bottom: 30px;
-            right: 20px;
-            width: 55px;
-            height: 55px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            font-size: 26px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            cursor: pointer;
-            z-index: 1000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
+            position: fixed; bottom: 30px; right: 20px; width: 55px; height: 55px;
+            background: var(--primary); color: white; border: none; border-radius: 50%;
+            font-size: 26px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); cursor: pointer; z-index: 1000;
+            display: none; align-items: center; justify-content: center; transition: background 0.2s;
         }
         .fab-expand:hover { background: var(--primary-dark); }
 
-        /* 當啟動收合模式 (is-collapsed) 時：強制隱藏上方黑條與面板，讓地圖吃滿 100vh */
         body.is-collapsed header { display: none !important; }
         body.is-collapsed .sidebar { width: 0 !important; height: 0 !important; padding: 0 !important; margin: 0 !important; border: none !important; overflow: hidden !important; opacity: 0; flex: none; }
-        body.is-collapsed .fab-expand { display: flex; } /* 顯示右下角按鈕 */
+        body.is-collapsed .fab-expand { display: flex; }
 
         @media (max-width: 850px) {
             .main-container { flex-direction: column; }
-            /* 展開狀態：手機上各半分割畫面 */
             .sidebar { width: 100% !important; height: 50vh; flex: none; }
             #map { height: 50vh; flex: 1; }
             .modal-content { padding: 12px; }
@@ -147,7 +130,7 @@
         <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="收合控制面板 (進入全螢幕)">☰</button>
         <h1>🗺️ 座標分佈管理系統</h1>
     </div>
-    <span style="font-size: 12px; color: #94a3b8;">Pro v10 Final</span>
+    <span style="font-size: 12px; color: #94a3b8;">Pro v11 Final</span>
 </header>
 
 <div class="main-container">
@@ -165,7 +148,7 @@
     <div id="map"></div>
 </div>
 
-<!-- 右下角專屬展開按鈕 (全螢幕模式時才會出現) -->
+<!-- 右下角專屬展開按鈕 -->
 <button class="fab-expand" onclick="toggleSidebar()" title="展開控制面板設定">☰</button>
 
 <!-- ================= 圖片輸出預覽視窗 ================= -->
@@ -208,7 +191,6 @@
     let exportMap, exportLayerGroup;
     let allLatLngsGlobal = []; 
     
-    // 定義四大真實高畫質像素比例
     const RATIOS = {
         '9:16': { w: 1080, h: 1920 },
         '16:9': { w: 1920, h: 1080 },
@@ -260,10 +242,9 @@
         }
     }
 
-    // ================= 核心修復：切換 100% 滿版模式 =================
+    // ================= 切換滿版模式 =================
     function toggleSidebar() {
         document.body.classList.toggle('is-collapsed');
-        // 等待瞬間的版面重算完成後，刷新地圖邊界
         setTimeout(() => { map.invalidateSize(); }, 50);
     }
 
@@ -467,7 +448,7 @@
                 const imgUrl = canvas.toDataURL('image/png');
                 const a = document.createElement('a');
                 
-                // 智慧檔名防呆處理 (替換特殊符號為底線)
+                // 智慧檔名防呆處理
                 const rawName = document.getElementById('watermarkInput').value.trim();
                 const safeName = rawName ? rawName.replace(/[\\/:*?"<>|]/g, '_') : '地圖輸出';
                 const dateStr = new Date().toISOString().slice(0,10);
@@ -488,7 +469,7 @@
         }, 800);
     }
 
-    // ================= 基礎表單操作與匯出 =================
+    // ================= 基礎表單操作與匯出（包含完美的防重複機制） =================
     function forceRefreshAndRender() {
         gpxDataList.forEach((g, i) => { if (!g.customId || !g.customId.trim()) g.customId = `G${String(i + 1).padStart(2, '0')}`; });
         updateGPXUI();
@@ -496,6 +477,7 @@
         renderMap();
     }
 
+    // 🏆 核心：GPX 去重複 (Deduplication) 邏輯
     function handleGPXUpload(input) {
         const files = input.files;
         if (files.length === 0) return;
@@ -503,7 +485,25 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 const xmlDoc = new DOMParser().parseFromString(e.target.result, "text/xml");
-                const allPoints = [...extractCoords(xmlDoc, "trkpt"), ...extractCoords(xmlDoc, "rtept"), ...extractCoords(xmlDoc, "wpt")];
+                
+                // 把所有可能包含座標的標籤全部抓出來
+                const allPointsRaw = [
+                    ...extractCoords(xmlDoc, "trkpt"), 
+                    ...extractCoords(xmlDoc, "rtept"), 
+                    ...extractCoords(xmlDoc, "wpt")
+                ];
+                
+                // 利用 Set 進行經緯度過濾，剔除完全重複的點位
+                const allPoints = [];
+                const seen = new Set();
+                allPointsRaw.forEach(pt => {
+                    const key = pt[0] + ',' + pt[1];
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        allPoints.push(pt);
+                    }
+                });
+
                 if (allPoints.length > 0) {
                     const defaultId = `G${String(gpxDataList.length + 1).padStart(2, '0')}`;
                     gpxDataList.push({
@@ -512,6 +512,8 @@
                         visible: true, color: gpxColors[gpxDataList.length % gpxColors.length]
                     });
                     updateGPXUI(); renderMap();
+                } else {
+                    alert(`檔案 ${file.name} 中找不到有效的經緯度座標！`);
                 }
             };
             reader.readAsText(file);
