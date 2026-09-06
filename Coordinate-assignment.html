@@ -8,13 +8,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-        /* 
-         * 🌸 自然與生活風配色方案 
-         * 主色: #FDFBF7 (燕麥奶白)
-         * 輔助色: #E6F0EA (鼠尾草綠), #D2B48C (淺駝色)
-         * 強調色: #E6A15C (向日葵黃), #2E5A44 (森林深綠)
-         */
-
+        /* 🌸 自然與生活風配色方案 */
         body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; background-color: #FDFBF7; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 1400px; margin: 0 auto; }
         .card { background: #FFFFFF; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(46,90,68,0.06); margin-bottom: 20px; border: 1px solid #E6F0EA; }
@@ -23,7 +17,6 @@
         
         .grid-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; margin-bottom: 20px; }
         
-        /* 拖曳與輸入區 */
         .drop-zone { border: 2px dashed #D2B48C; border-radius: 8px; background-color: #FDFBF7; cursor: pointer; transition: 0.3s; height: 85px; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box; }
         .drop-zone:hover, .drop-zone.dragover { border-color: #2E5A44; background-color: #E6F0EA; }
         .drop-zone p { margin: 3px 0; }
@@ -36,20 +29,17 @@
         input[type="number"], input[type="text"] { width: 100%; padding: 8px; border: 1px solid #D2B48C; border-radius: 4px; box-sizing: border-box; color: #333; }
         input:focus { border-color: #2E5A44; outline: none; }
         
-        /* 按鈕全域樣式 */
         button { background: #2E5A44; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s; width: 100%; box-sizing: border-box; }
         button:hover { background: #1c3b2c; }
         button.outline-btn { background: transparent; color: #2E5A44; border: 1px solid #2E5A44; }
         button.outline-btn:hover { background: #E6F0EA; }
         
-        /* 特殊按鈕 */
         button.dl-btn { background: #E6A15C; color: #2E5A44; font-size: 16px; padding: 12px; box-shadow: 0 2px 6px rgba(230,161,92,0.3); }
         button.dl-btn:hover { background: #d99047; }
         button.add-area-btn { background: #E6A15C; color: #2E5A44; width: auto; padding: 8px 20px; font-size: 15px; box-shadow: 0 2px 6px rgba(230,161,92,0.3); }
         button.add-area-btn:hover { background: #d99047; }
         button.import-btn { margin-top: 10px; padding: 8px; }
         
-        /* 縮小並弱化全局重分配按鈕 */
         button.action-btn { background: #fff; color: #d35400; border: 1px solid #d35400; font-size: 13px; padding: 6px 12px; width: auto; margin-top: 5px; border-radius: 4px; } 
         button.action-btn:hover { background: #fceceb; }
 
@@ -94,7 +84,6 @@
     <h1>🌸 花田座標編輯分配工具</h1>
 
     <div class="grid-layout">
-        <!-- 區塊 1 -->
         <div class="card" style="margin-bottom: 0;">
             <h2>1. 載入 GPX / CSV / TXT</h2>
             <div class="drop-zone" id="dropZone">
@@ -104,14 +93,12 @@
             <input type="file" id="fileInput" accept=".gpx,.csv,.txt" multiple style="display: none;">
         </div>
 
-        <!-- 區塊 2 -->
         <div class="card" style="margin-bottom: 0;">
             <h2>2. 手動貼上座標 (每行一筆)</h2>
             <textarea id="manualInput" class="manual-input" placeholder="例如：23.5123, 121.1234"></textarea>
             <button class="import-btn" onclick="processManualPoints()">➕ 匯入這些座標</button>
         </div>
 
-        <!-- 區塊 3 -->
         <div class="card" style="margin-bottom: 0;">
             <h2>3. AI 全局重分配</h2>
             <div class="row">
@@ -229,7 +216,6 @@
 </div>
 
 <script>
-    // 使用柔和大地與自然色系替換原本刺眼的顏色
     const themeColors = ['#D36B5B', '#5A8896', '#6C9A69', '#D9A05B', '#966B8E', '#C28455', '#4A5B63', '#A67358', '#509A8F', '#B36D82'];
     const themeIcons = ['🔴', '🔵', '🟢', '🟡', '🟣', '🟠', '⚫', '🟤', '🔷', '🌸'];
 
@@ -400,7 +386,7 @@
 
         allPoints = allPoints.concat(assignedPts);
         closeImportModal();
-        updateSystem();
+        updateSystem(true); // 匯入大批資料時，允許自動縮放
         alert(`成功匯入並分配了 ${assignedPts.length} 筆座標！`);
     }
 
@@ -456,11 +442,11 @@
             }
         });
 
-        updateSystem();
+        updateSystem(false); // 局部文字更新，【不縮放地圖】
         if (addedCount > 0 || removedCount > 0) alert(`座標同步完成！\n✔️ 新增 ${addedCount} 筆\n❌ 刪除/移出 ${removedCount} 筆`);
     };
 
-    window.addEmptyCluster = () => { createNewCluster(`手動新增區_${clusterIdCounter + 1}`); updateSystem(); };
+    window.addEmptyCluster = () => { createNewCluster(`手動新增區_${clusterIdCounter + 1}`); updateSystem(false); };
     function createNewCluster(defaultName) {
         let id = clusterIdCounter++;
         clustersMeta.push({ id: id, shortName: defaultName, finalName: defaultName, selected: true, color: themeColors[clustersMeta.length % 10], icon: themeIcons[clustersMeta.length % 10] });
@@ -472,11 +458,12 @@
             allPoints.forEach(p => { if(p.clusterId === id) { p.clusterId = -1; p.name = `座標_原_${meta.shortName}`; } });
             clustersMeta = clustersMeta.filter(c => c.id !== id);
             clustersMeta.forEach((m, i) => { m.color = themeColors[i % 10]; m.icon = themeIcons[i % 10]; });
-            updateSystem();
+            updateSystem(false); // 刪除區域，【不縮放地圖】
         }
     };
     
-    function updateSystem() {
+    // 【核心修正】加入 autoZoom 參數控制是否自動縮放地圖
+    function updateSystem(autoZoom = true) {
         document.getElementById('totalPointsCount').innerText = allPoints.filter(p => p.clusterId >= 0).length;
         document.getElementById('totalClustersCount').innerText = clustersMeta.length;
         markerLayers.clearLayers();
@@ -492,7 +479,11 @@
 
         let unusedPoints = allPoints.filter(p => p.clusterId === -1);
         if (unusedPoints.length > 0) renderCard(unusedPoints, { id: -1, shortName: '不使用 (已排除)', color: '#bdc3c7', icon: '⚪' }, true);
-        if (bounds.length > 0) map.fitBounds(L.latLngBounds(bounds).pad(0.1));
+        
+        // 只有 autoZoom = true 時才執行地圖視角自動對焦
+        if (bounds.length > 0 && autoZoom) {
+            map.fitBounds(L.latLngBounds(bounds).pad(0.1));
+        }
     }
 
     function renderCard(points, meta, isUnused) {
@@ -522,24 +513,77 @@
         const card = document.createElement('div');
         card.className = isUnused ? "cluster-card card-gray" : "cluster-card";
         card.style.borderColor = meta.color;
+        
+        let buttonRowHtml = '';
+        if (isUnused) {
+            buttonRowHtml = `
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="outline-btn" style="flex:1; padding:6px; font-size:13px; border-color:#bdc3c7; color:#555; background: #fff;" onclick="syncClusterText(${meta.id})">💾 更新資料</button>
+                </div>`;
+        } else {
+            buttonRowHtml = `
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="outline-btn" style="flex:1; padding:6px; font-size:13px; border-color:#D2B48C; color:#555; background: #fff;" onclick="syncClusterText(${meta.id})">💾 更新資料</button>
+                    <button class="outline-btn" style="flex:1; padding:6px; font-size:13px; border-color:#E6A15C; color:#d35400; background: #fff;" onclick="downloadSingle(${meta.id}, 'gpx')">📥 GPX</button>
+                    <button class="outline-btn" style="flex:1; padding:6px; font-size:13px; border-color:#E6A15C; color:#d35400; background: #fff;" onclick="downloadSingle(${meta.id}, 'txt')">📥 TXT</button>
+                </div>`;
+        }
+
         card.innerHTML = `
             ${headerHtml}
             <textarea id="txt-${meta.id}" placeholder="可直接貼上/刪除座標...">${latlngList}</textarea>
-            <button class="outline-btn" style="margin-top:8px; padding:6px; font-size:13px; width:100%; border-color:#D2B48C; color:#555; background: #fff;" onclick="syncClusterText(${meta.id})">💾 儲存並同步座標變更</button>
+            ${buttonRowHtml}
         `;
         container.appendChild(card);
 
         points.forEach(p => {
-            let popupHtml = `<div style="font-size:13px;"><b>🔖 名稱：</b> ${p.name}<br><b>📍 座標：</b> ${p.lat}, ${p.lng}<hr style="margin:5px 0; border-color:#E6F0EA;"><b>移動至：</b><select class="popup-select" onchange="let pt=allPoints.find(x=>x.id==${p.id}); pt.clusterId=parseInt(this.value); updateSystem();">`;
+            // 【核心修正】彈出視窗內改變區域時，傳入 false 不縮放地圖
+            let popupHtml = `<div style="font-size:13px;"><b>🔖 名稱：</b> ${p.name}<br><b>📍 座標：</b> ${p.lat}, ${p.lng}<hr style="margin:5px 0; border-color:#E6F0EA;"><b>移動至：</b><select class="popup-select" onchange="let pt=allPoints.find(x=>x.id==${p.id}); pt.clusterId=parseInt(this.value); updateSystem(false);">`;
             clustersMeta.forEach(m => { popupHtml += `<option value="${m.id}" ${m.id===p.clusterId?'selected':''}>${m.icon} ${m.shortName}</option>`; });
             popupHtml += `<option value="-1" ${p.clusterId===-1?'selected':''}>⚪ 不使用 (排除)</option></select></div>`;
             L.circleMarker([p.lat, p.lng], { radius: 7, fillColor: meta.color, color: "#fff", weight: 2, fillOpacity: 0.9 }).bindPopup(popupHtml).addTo(markerLayers);
         });
     }
 
-    window.toggleAllCheckboxes = (s) => { clustersMeta.forEach(m => m.selected = s); updateSystem(); };
-    window.moveClusterUp = (id) => { let idx = clustersMeta.findIndex(c => c.id === id); if (idx > 0) { [clustersMeta[idx], clustersMeta[idx-1]] = [clustersMeta[idx-1], clustersMeta[idx]]; clustersMeta.forEach((m, i) => { m.color = themeColors[i % 10]; m.icon = themeIcons[i % 10]; }); updateSystem(); } };
-    window.moveClusterDown = (id) => { let idx = clustersMeta.findIndex(c => c.id === id); if (idx < clustersMeta.length - 1 && idx !== -1) { [clustersMeta[idx], clustersMeta[idx+1]] = [clustersMeta[idx+1], clustersMeta[idx]]; clustersMeta.forEach((m, i) => { m.color = themeColors[i % 10]; m.icon = themeIcons[i % 10]; }); updateSystem(); } };
+    window.downloadSingle = function(cId, format) {
+        let meta = clustersMeta.find(m => m.id === cId);
+        let pts = allPoints.filter(p => p.clusterId === cId);
+        if (pts.length === 0) return alert("此區域沒有座標可供下載！");
+        
+        let defaultName = meta ? meta.finalName || meta.shortName : "未命名";
+        let inputName = prompt(`請輸入 ${format.toUpperCase()} 存檔名稱：`, defaultName);
+        if (!inputName) return; 
+        
+        let safeName = inputName.trim().replace(/[\\/:*?"<>|]/g, "_");
+        if (!safeName) safeName = "未命名";
+        
+        let content, mime, ext;
+        if (format === 'txt') {
+            content = pts.map(p => `${p.lat}, ${p.lng}`).join('\n');
+            mime = "text/plain;charset=utf-8";
+            ext = ".txt";
+        } else {
+            content = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">\n` + 
+                      pts.map(p => `  <wpt lat="${p.lat}" lon="${p.lng}"><name>${p.name}</name></wpt>\n`).join('') + 
+                      `</gpx>`;
+            mime = "application/gpx+xml;charset=utf-8";
+            ext = ".wpt"; 
+        }
+        
+        let blob = new Blob([content], { type: mime });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = safeName + ext;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    window.toggleAllCheckboxes = (s) => { clustersMeta.forEach(m => m.selected = s); updateSystem(false); };
+    window.moveClusterUp = (id) => { let idx = clustersMeta.findIndex(c => c.id === id); if (idx > 0) { [clustersMeta[idx], clustersMeta[idx-1]] = [clustersMeta[idx-1], clustersMeta[idx]]; clustersMeta.forEach((m, i) => { m.color = themeColors[i % 10]; m.icon = themeIcons[i % 10]; }); updateSystem(false); } };
+    window.moveClusterDown = (id) => { let idx = clustersMeta.findIndex(c => c.id === id); if (idx < clustersMeta.length - 1 && idx !== -1) { [clustersMeta[idx], clustersMeta[idx+1]] = [clustersMeta[idx+1], clustersMeta[idx]]; clustersMeta.forEach((m, i) => { m.color = themeColors[i % 10]; m.icon = themeIcons[i % 10]; }); updateSystem(false); } };
 
     window.startConstrainedKMeansGlobal = () => {
         let activePoints = allPoints.filter(p => p.clusterId !== -1);
@@ -567,7 +611,7 @@
             activePoints.forEach(p => { sumsLat[p.clusterId] += p.lat; sumsLng[p.clusterId] += p.lng; });
             for(let c=0; c<totalGroups; c++) if(currentCounts[c]>0) centroids[c] = { lat: sumsLat[c]/currentCounts[c], lng: sumsLng[c]/currentCounts[c] };
         }
-        updateSystem();
+        updateSystem(true); // 觸發全域重新分配，需要地圖重新對焦
     };
 
     window.openExportModal = () => {
