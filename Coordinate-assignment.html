@@ -130,7 +130,7 @@
             <div style="display: flex; align-items: center; gap: 5px;">
                 <span style="font-size: 14px; font-weight: bold; color: #2E5A44;">匯出格式：</span>
                 <select id="exportFormat" style="padding: 6px; border-radius: 4px; border: 1px solid #D2B48C; font-size: 14px;">
-                    <option value="gpx">GPX 航點 (.wpt)</option>
+                    <option value="gpx">GPX 航點 (.gpx)</option>
                     <option value="txt">純文字 (.txt)</option>
                 </select>
             </div>
@@ -228,7 +228,12 @@
 
     let map = L.map('map').setView([23.5, 121], 7);
     let markerLayers = L.layerGroup().addTo(map);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+    
+    // 🌍 換回官方 OpenStreetMap，適合 GitHub Pages 部署使用
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+    }).addTo(map);
 
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
@@ -386,7 +391,7 @@
 
         allPoints = allPoints.concat(assignedPts);
         closeImportModal();
-        updateSystem(true); // 匯入大批資料時，允許自動縮放
+        updateSystem(true);
         alert(`成功匯入並分配了 ${assignedPts.length} 筆座標！`);
     }
 
@@ -442,7 +447,7 @@
             }
         });
 
-        updateSystem(false); // 局部文字更新，【不縮放地圖】
+        updateSystem(false);
         if (addedCount > 0 || removedCount > 0) alert(`座標同步完成！\n✔️ 新增 ${addedCount} 筆\n❌ 刪除/移出 ${removedCount} 筆`);
     };
 
@@ -458,11 +463,10 @@
             allPoints.forEach(p => { if(p.clusterId === id) { p.clusterId = -1; p.name = `座標_原_${meta.shortName}`; } });
             clustersMeta = clustersMeta.filter(c => c.id !== id);
             clustersMeta.forEach((m, i) => { m.color = themeColors[i % 10]; m.icon = themeIcons[i % 10]; });
-            updateSystem(false); // 刪除區域，【不縮放地圖】
+            updateSystem(false); 
         }
     };
     
-    // 【核心修正】加入 autoZoom 參數控制是否自動縮放地圖
     function updateSystem(autoZoom = true) {
         document.getElementById('totalPointsCount').innerText = allPoints.filter(p => p.clusterId >= 0).length;
         document.getElementById('totalClustersCount').innerText = clustersMeta.length;
@@ -480,7 +484,6 @@
         let unusedPoints = allPoints.filter(p => p.clusterId === -1);
         if (unusedPoints.length > 0) renderCard(unusedPoints, { id: -1, shortName: '不使用 (已排除)', color: '#bdc3c7', icon: '⚪' }, true);
         
-        // 只有 autoZoom = true 時才執行地圖視角自動對焦
         if (bounds.length > 0 && autoZoom) {
             map.fitBounds(L.latLngBounds(bounds).pad(0.1));
         }
@@ -537,7 +540,6 @@
         container.appendChild(card);
 
         points.forEach(p => {
-            // 【核心修正】彈出視窗內改變區域時，傳入 false 不縮放地圖
             let popupHtml = `<div style="font-size:13px;"><b>🔖 名稱：</b> ${p.name}<br><b>📍 座標：</b> ${p.lat}, ${p.lng}<hr style="margin:5px 0; border-color:#E6F0EA;"><b>移動至：</b><select class="popup-select" onchange="let pt=allPoints.find(x=>x.id==${p.id}); pt.clusterId=parseInt(this.value); updateSystem(false);">`;
             clustersMeta.forEach(m => { popupHtml += `<option value="${m.id}" ${m.id===p.clusterId?'selected':''}>${m.icon} ${m.shortName}</option>`; });
             popupHtml += `<option value="-1" ${p.clusterId===-1?'selected':''}>⚪ 不使用 (排除)</option></select></div>`;
@@ -567,7 +569,7 @@
                       pts.map(p => `  <wpt lat="${p.lat}" lon="${p.lng}"><name>${p.name}</name></wpt>\n`).join('') + 
                       `</gpx>`;
             mime = "application/gpx+xml;charset=utf-8";
-            ext = ".wpt"; 
+            ext = ".gpx"; 
         }
         
         let blob = new Blob([content], { type: mime });
@@ -611,7 +613,7 @@
             activePoints.forEach(p => { sumsLat[p.clusterId] += p.lat; sumsLng[p.clusterId] += p.lng; });
             for(let c=0; c<totalGroups; c++) if(currentCounts[c]>0) centroids[c] = { lat: sumsLat[c]/currentCounts[c], lng: sumsLng[c]/currentCounts[c] };
         }
-        updateSystem(true); // 觸發全域重新分配，需要地圖重新對焦
+        updateSystem(true); 
     };
 
     window.openExportModal = () => {
@@ -634,7 +636,7 @@
                 zip.file(`${sName}.txt`, pts.map(p => `${p.lat}, ${p.lng}`).join('\n'));
             } else {
                 let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">\n` + pts.map(p => `  <wpt lat="${p.lat}" lon="${p.lng}"><name>${p.name}</name></wpt>\n`).join('') + `</gpx>`;
-                zip.file(`${sName}.wpt`, gpx);
+                zip.file(`${sName}.gpx`, gpx);
             }
         });
         zip.generateAsync({ type: "blob" }).then(content => {
