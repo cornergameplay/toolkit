@@ -8,82 +8,81 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/s2-geometry@1.2.10/src/s2geometry.js"></script>
     <style>
+        /* --- 日系科技企業風 (Toyota Battery Recruitment Style) --- */
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
-            color: #333;
+            font-family: 'Helvetica Neue', Helvetica, Arial, 'Microsoft JhengHei', sans-serif;
+            background-color: #F7F8FA; /* 乾淨科技淺灰 */
+            color: #222222;
             max-width: 800px;
             margin: 30px auto;
             padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        h2 { text-align: center; color: #2c3e50; }
+        
+        h2 { 
+            text-align: center; color: #222222; margin-bottom: 25px; 
+            font-weight: 800; letter-spacing: 1px;
+        }
+        
+        .theme-container {
+            background: #FFFFFF;
+            border: 1px solid #EAEAEA;
+            border-radius: 4px; /* 俐落微圓角 */
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
         .flex-container { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
         .flex-item { flex: 1; min-width: 120px; }
-        label { font-weight: bold; display: block; margin-top: 10px; margin-bottom: 5px; }
-        input[type="text"], input[type="number"], textarea {
-            width: 100%; padding: 10px; border: 1px solid #ccc;
+        label { font-weight: 700; display: block; margin-top: 10px; margin-bottom: 5px; color: #222222; font-size: 14px;}
+        
+        input[type="text"], input[type="number"], textarea, select {
+            width: 100%; padding: 10px; 
+            background: #FFFFFF;
+            border: 1px solid #CCCCCC;
             border-radius: 4px; box-sizing: border-box;
+            color: #222222; font-weight: 500;
+            transition: 0.2s ease-in-out;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none; 
+            border-color: #E3000F; /* Toyota Red */
+            box-shadow: 0 0 0 2px rgba(227, 0, 15, 0.15);
         }
         textarea { height: 140px; font-family: monospace; resize: vertical; }
         
+        /* 扁平化主按鈕 */
         button {
-            display: block; width: 100%; padding: 15px; margin-top: 15px;
+            display: block; width: 100%; padding: 12px; margin-top: 15px;
             color: white; border: none; border-radius: 4px; 
-            font-size: 16px; font-weight: bold; cursor: pointer; 
-            transition: background-color 0.3s;
+            font-size: 15px; font-weight: 700; cursor: pointer; 
+            transition: all 0.2s ease;
         }
-        .btn-download { background-color: #27ae60; }
-        .btn-download:hover { background-color: #2ecc71; }
-        .btn-txt { background-color: #34495e; margin-top: 10px; }
-        .btn-txt:hover { background-color: #2c3e50; }
-        .btn-preview { background-color: #3498db; margin-top: 20px;}
-        .btn-preview:hover { background-color: #2980b9; }
+        button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        button:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+
+        /* 企業標準配色配置 */
+        .btn-download { background-color: #E3000F; } /* 豐田紅 */
+        .btn-download:hover { background-color: #C0000C; }
+        .btn-txt { background-color: #222222; margin-top: 10px; } /* 炭黑 */
+        .btn-txt:hover { background-color: #000000; }
+        .btn-preview { background-color: #222222; margin-top: 20px;} 
+        .btn-preview:hover { background-color: #000000; }
         
         .header-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; margin-bottom: 5px; flex-wrap: wrap; gap: 10px; }
         .header-row label { margin: 0; }
         
-        .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-        .btn-upload {
-            width: auto; padding: 6px 12px; margin: 0; background-color: #8e44ad; 
-            color: white; border: none; border-radius: 4px; font-size: 14px; 
-            cursor: pointer; font-weight: bold; transition: background-color 0.3s;
-        }
-        .btn-upload:hover { background-color: #9b59b6; }
-        
-        .btn-paste {
-            width: auto; padding: 6px 12px; margin: 0; background-color: #f39c12; 
-            color: white; border: none; border-radius: 4px; font-size: 14px; 
-            cursor: pointer; font-weight: bold; transition: background-color 0.3s;
-        }
-        .btn-paste:hover { background-color: #e67e22; }
-
-        .btn-dedupe {
-            width: auto; padding: 6px 12px; margin: 0; background-color: #1abc9c; 
-            color: white; border: none; border-radius: 4px; font-size: 14px; 
-            cursor: pointer; font-weight: bold; transition: background-color 0.3s;
-        }
-        .btn-dedupe:hover { background-color: #16a085; }
-
-        .btn-recognize {
-            width: auto; padding: 6px 12px; margin: 0; background-color: #3498db; 
-            color: white; border: none; border-radius: 4px; font-size: 14px; 
-            cursor: pointer; font-weight: bold; transition: background-color 0.3s;
-        }
-        .btn-recognize:hover { background-color: #2980b9; }
-
-        .btn-clear-all {
-            width: auto; padding: 6px 12px; margin: 0; background-color: #e74c3c; 
-            color: white; border: none; border-radius: 4px; font-size: 14px; 
-            cursor: pointer; font-weight: bold; transition: background-color 0.3s;
-        }
-        .btn-clear-all:hover { background-color: #c0392b; }
+        .header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .btn-upload, .btn-dedupe, .btn-recognize { width: auto; padding: 6px 12px; margin: 0; background-color: #555555; }
+        .btn-paste { width: auto; padding: 6px 12px; margin: 0; background-color: #E3000F; }
+        .btn-clear-all { width: auto; padding: 6px 12px; margin: 0; background-color: #222222; }
 
         .point-marker {
-            background-color: #3498db; color: white; border-radius: 50%;
-            width: 22px; height: 22px; text-align: center; line-height: 22px;
+            background-color: #222222; color: white; border-radius: 50%;
+            width: 22px; height: 22px; text-align: center; line-height: 20px;
             font-size: 11px; font-weight: bold; border: 2px solid white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             cursor: pointer;
@@ -91,188 +90,144 @@
         .custom-div-icon { background: transparent; border: none; }
         
         .mode-panel {
-            background-color: #fff3cd; padding: 12px; border-radius: 6px;
-            border: 1px solid #ffe69c; display: flex; align-items: center; gap: 15px;
+            background: #F8F9FA; padding: 12px; border-radius: 4px;
+            border: 1px solid #EAEAEA; display: flex; align-items: center; gap: 15px;
             margin-top: 15px; flex-wrap: wrap;
         }
-        .mode-panel span { font-weight: bold; color: #856404; }
-        .mode-panel label { margin: 0; cursor: pointer; color: #333; font-weight: bold; display: flex; align-items: center; gap: 5px; white-space: nowrap;}
-        .mode-panel input { cursor: pointer; width: 16px; height: 16px; margin:0; }
+        .mode-panel span { font-weight: bold; color: #E3000F; }
+        .mode-panel label { margin: 0; cursor: pointer; color: #222; font-weight: bold; display: flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 14px;}
+        .mode-panel input { cursor: pointer; width: 16px; height: 16px; margin:0; accent-color: #E3000F; }
         .mode-panel input:disabled { cursor: not-allowed; }
 
+        /* Combo Builder */
         .combo-builder {
-            background: #fdfdfd; border: 2px dashed #bdc3c7; padding: 15px; border-radius: 6px;
-            margin-top: 10px; display: none;
+            background: #FAFAFA; border: 2px dashed #CCCCCC; 
+            padding: 15px; border-radius: 4px; margin-top: 10px; display: none;
         }
         .combo-seq-list { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
         .combo-badge {
-            background: #3498db; color: white; padding: 6px 12px; border-radius: 20px; font-size: 14px;
-            display: flex; align-items: center; gap: 6px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: #222222; color: white; padding: 6px 12px; border-radius: 4px; font-size: 13px;
+            display: flex; align-items: center; gap: 6px; font-weight: bold;
         }
-        .combo-badge.zigzag { background: #9b59b6; }
-        .combo-badge.triangle { background: #e67e22; }
-        .combo-badge.circle { background: #e84393; }
-        .combo-badge.straight { background: #1abc9c; }
-        .combo-badge.qi { background: #8e44ad; }
-        .combo-badge.scan { background: #f39c12; }
-        .combo-badge.gridScan { background: #16a085; }
+        .combo-badge.zigzag { background: #555555; }
+        .combo-badge.triangle { background: #555555; }
+        .combo-badge.circle { background: #E3000F; }
+        .combo-badge.straight { background: #555555; }
+        .combo-badge.qi { background: #555555; }
+        .combo-badge.scan { background: #E3000F; }
+        .combo-badge.gridScan { background: #222222; }
         
-        .combo-badge-rev {
-            cursor: pointer; background: rgba(255,255,255,0.25); border-radius: 50%; 
+        .combo-badge-rev, .combo-badge-del {
+            cursor: pointer; background: rgba(255,255,255,0.2); border-radius: 4px; 
             width: 22px; height: 22px; text-align: center; line-height: 22px; font-size: 12px;
             transition: 0.2s;
         }
-        .combo-badge-rev:hover { background: white; color: #333; }
-
-        .combo-badge-del { 
-            cursor: pointer; background: rgba(255,255,255,0.25); border-radius: 50%; 
-            width: 22px; height: 22px; text-align: center; line-height: 20px; font-size: 16px;
-        }
-        .combo-badge-del:hover { background: #e74c3c; color: white; }
+        .combo-badge-rev:hover { background: white; color: #E3000F; }
+        .combo-badge-del { line-height: 20px; font-size: 16px; }
+        .combo-badge-del:hover { background: #E3000F; color: white; }
         
         .combo-add-btn {
-            background: white; border: 2px solid #3498db; color: #3498db; padding: 6px 12px; 
-            border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; display: inline-block; width: auto; margin: 0;
+            background: #FFFFFF; border: 1px solid #777; color: #555; padding: 6px 12px; 
+            border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; display: inline-block; width: auto; margin: 0;
         }
-        .combo-add-btn:hover { background: #3498db; color: white; }
-        .combo-add-btn.zigzag { border-color: #9b59b6; color: #9b59b6; }
-        .combo-add-btn.zigzag:hover { background: #9b59b6; color: white; }
-        .combo-add-btn.triangle { border-color: #e67e22; color: #e67e22; }
-        .combo-add-btn.triangle:hover { background: #e67e22; color: white; }
-        .combo-add-btn.circle { border-color: #e84393; color: #e84393; }
-        .combo-add-btn.circle:hover { background: #e84393; color: white; }
-        .combo-add-btn.straight { border-color: #1abc9c; color: #1abc9c; }
-        .combo-add-btn.straight:hover { background: #1abc9c; color: white; }
-        .combo-add-btn.qi { border-color: #8e44ad; color: #8e44ad; }
-        .combo-add-btn.qi:hover { background: #8e44ad; color: white; }
-        .combo-add-btn.scan { border-color: #f39c12; color: #f39c12; }
-        .combo-add-btn.scan:hover:not(:disabled) { background: #f39c12; color: white; }
-        .combo-add-btn.scan:disabled { opacity: 0.4; cursor: not-allowed; border-color: #ccc; color: #999; }
-        .combo-add-btn.gridScan { border-color: #16a085; color: #16a085; }
-        .combo-add-btn.gridScan:hover:not(:disabled) { background: #16a085; color: white; }
-        .combo-add-btn.gridScan:disabled { opacity: 0.4; cursor: not-allowed; border-color: #ccc; color: #999; }
+        .combo-add-btn:hover:not(:disabled) { background: #555; color: white; border-color: #555;}
+        .combo-add-btn.zigzag { border-color: #E3000F; color: #E3000F; }
+        .combo-add-btn.zigzag:hover { background: #E3000F; color: white; }
+        .combo-add-btn.circle { border-color: #E3000F; color: #E3000F; }
+        .combo-add-btn.circle:hover { background: #E3000F; color: white; }
+        .combo-add-btn.scan { border-color: #E3000F; color: #E3000F; }
+        .combo-add-btn.scan:hover:not(:disabled) { background: #E3000F; color: white; }
+        .combo-add-btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: #ccc; color: #999; }
 
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6); z-index: 1000;
+            background: rgba(0, 0, 0, 0.75); z-index: 1000;
             justify-content: center; align-items: center;
         }
         .modal-content {
-            background: white; padding: 20px; border-radius: 8px;
+            background: #FFFFFF; padding: 20px; border-radius: 4px;
             width: 95%; max-width: 900px; position: relative;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             max-height: 95vh; overflow-y: auto;
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
         }
         .close-btn {
             position: absolute; top: 15px; right: 20px;
-            font-size: 28px; font-weight: bold; color: #888;
-            cursor: pointer; line-height: 1;
+            font-size: 28px; font-weight: bold; color: #222;
+            cursor: pointer; line-height: 1; opacity: 0.5; transition: 0.2s;
         }
-        .close-btn:hover { color: #333; }
+        .close-btn:hover { opacity: 1; color: #E3000F;}
         
-        #map { flex-grow: 1; min-height: 300px; height: 420px; width: 100%; border-radius: 4px; border: 1px solid #ccc; z-index: 1; margin-bottom: 15px; }
+        #map { flex-grow: 1; min-height: 300px; height: 420px; width: 100%; border-radius: 4px; border: 1px solid #CCCCCC; z-index: 1; margin-bottom: 15px; }
         
-        /* ----------------------------------------------------
-           終極防呆緊湊排版：利用 CSS Grid 將按鈕體積壓縮到極致 
-           ---------------------------------------------------- */
-        
-        .action-bar-top { 
-            display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; align-items: stretch;
-        }
-
-        /* 路線模式切換：完美重現無縫相連感，但手機上變為 3x3 九宮格 */
+        /* 九宮格排版：路線模式切換 - 高度對比色塊 */
+        .action-bar-top { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; align-items: stretch; }
         .route-toggle-group {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1px; /* 創造1px藍色邊框的視覺效果 */
-            background-color: #3498db;
-            border: 2px solid #3498db;
-            border-radius: 6px;
-            overflow: hidden;
-            width: 100%;
-            flex: 1;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; 
+            background-color: #222222; /* 分隔線顏色 */
+            border: 2px solid #222222;
+            border-radius: 4px; overflow: hidden; width: 100%; flex: 1;
         }
-        @media(min-width: 600px) {
-            .route-toggle-group { grid-template-columns: repeat(9, 1fr); }
-        }
+        @media(min-width: 600px) { .route-toggle-group { grid-template-columns: repeat(9, 1fr); } }
+        
         .toggle-btn {
-            background-color: white; 
-            color: #3498db; 
-            border: none; 
-            padding: 8px 0; 
-            font-size: 13px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            transition: 0.3s; 
-            margin: 0;
-            text-align: center;
-            border-radius: 0;
+            background-color: #FFFFFF; color: #222222; 
+            border: none; padding: 8px 0; font-size: 13px; font-weight: bold; 
+            cursor: pointer; transition: 0.2s; margin: 0; text-align: center; border-radius: 0;
+            box-shadow: none;
         }
-        .toggle-btn.active { background-color: #3498db; color: white; }
-        .toggle-btn:hover:not(.active) { background-color: #eaf4fc; }
-        .toggle-btn:disabled { opacity: 0.4; cursor: not-allowed; color: #999; }
+        .toggle-btn.active { background-color: #222222; color: white; }
+        .toggle-btn:hover:not(.active) { background-color: #F0F0F0; color: #E3000F; }
+        .toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; color: #999; background: #EAEAEA;}
 
         /* 時速設定列 */
         .speed-control {
             display: flex; align-items: center; justify-content: center; gap: 8px; 
-            background: #fff; border: 2px solid #bdc3c7; border-radius: 6px; 
+            background: #FFFFFF; border: 2px solid #222222; border-radius: 4px; 
             padding: 4px 10px; width: 100%; box-sizing: border-box;
         }
-        @media(min-width: 600px) {
-            .speed-control { width: auto; }
-        }
-        .speed-control input {
-            width: 45px; border: none; outline: none; font-weight: bold; 
-            color: #d35400; text-align: center; font-size: 16px; padding: 0; background: transparent;
-        }
+        @media(min-width: 600px) { .speed-control { width: auto; } }
+        .speed-control input { color: #E3000F; }
 
-        /* 附屬功能：超緊湊 3x2 方塊陣列，絕不超出畫面 */
+        /* 附屬功能：3x2 方塊陣列 */
         .action-bar-tools { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px; 
-            margin-bottom: 8px; 
-            padding-bottom: 12px; 
-            border-bottom: 1px solid #eee; 
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; 
+            margin-bottom: 8px; padding-bottom: 12px; border-bottom: 1px solid #EAEAEA; 
         }
-        @media(min-width: 600px) {
-            .action-bar-tools { grid-template-columns: repeat(7, 1fr); }
-        }
+        @media(min-width: 600px) { .action-bar-tools { grid-template-columns: repeat(7, 1fr); } }
+        
         .btn-action-small {
-            margin: 0; padding: 8px 0; color: white; border: none; border-radius: 6px; 
-            font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.3s; 
+            margin: 0; padding: 8px 0; color: white; border: none; border-radius: 4px; 
+            font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; 
             white-space: nowrap; text-align: center; width: 100%; box-sizing: border-box;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .btn-optimize { background-color: #1abc9c; }
-        .btn-optimize:hover { background-color: #16a085; }
-        .btn-reverse { background-color: #f39c12; }
-        .btn-reverse:hover { background-color: #e67e22; }
-        .btn-undo { background-color: #95a5a6; }
-        .btn-undo:hover:not(:disabled) { background-color: #7f8c8d; }
-        .btn-undo:disabled { opacity: 0.5; cursor: not-allowed; background-color: #bdc3c7;}
-        .btn-undo-opt { background-color: #e74c3c; }
-        .btn-undo-opt:hover { background-color: #c0392b; }
+        
+        /* 附屬按鈕配色 - 企業科技黑紅灰 */
+        #btnS2Grid, #btnMapClickAdd { background-color: #555555; }
+        #btnEditMode { background-color: #E3000F; } 
+        .btn-optimize { background-color: #222222; } 
+        .btn-reverse { background-color: #555555; }
+        .btn-undo { background-color: #333333; }
+        .btn-undo-opt { background-color: #E3000F; }
 
         .route-stats {
-            background-color: #f8f9fa; border-left: 4px solid #f39c12;
-            padding: 8px 15px; margin-bottom: 8px; border-radius: 4px;
-            font-size: 14px; color: #2c3e50; font-weight: bold;
+            background-color: #F8F9FA; border-left: 4px solid #E3000F;
+            padding: 8px 15px; margin-bottom: 8px; border-radius: 2px;
+            font-size: 14px; color: #222222; font-weight: bold;
+            border: 1px solid #EAEAEA; border-left-width: 4px;
         }
-        .stat-highlight { color: #d35400; font-size: 16px; margin-left: 5px; margin-right: 15px; }
-        .stat-sub { color: #7f8c8d; font-size: 12px; font-weight: normal; }
+        .stat-highlight { color: #E3000F; font-size: 16px; margin-left: 5px; margin-right: 15px; font-weight: 800;}
+        .stat-sub { color: #666666; font-size: 12px; font-weight: bold; }
 
         .btn-icon {
-            background: white; border: 1px solid #ccc; border-radius: 4px; color: #333;
-            cursor: pointer; padding: 4px 8px; font-size: 14px; transition: 0.2s; outline: none;
+            background: #FFFFFF; border: 1px solid #CCCCCC; border-radius: 4px; color: #222222;
+            cursor: pointer; padding: 4px 8px; font-size: 14px; transition: 0.2s; outline: none; box-shadow: none;
         }
-        .btn-icon:hover:not(:disabled) { background: #eee; }
-        .btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
-        .btn-del { color: #e74c3c; }
-        .btn-del:hover:not(:disabled) { background: #fee; border-color: #fca; }
+        .btn-icon:hover:not(:disabled) { background: #F0F0F0; border-color: #222; }
+        .btn-del { color: #E3000F; }
+        .btn-del:hover:not(:disabled) { background: #FFEBEB; border-color: #E3000F; }
 
+        /* 地圖繪製模式專屬 CSS 強制穿透覆蓋游標，確保不擋點擊 */
         .drawing-mode { cursor: crosshair !important; }
         .drawing-mode .leaflet-interactive { cursor: crosshair !important; }
         .leaflet-container.drawing-mode { cursor: crosshair !important; }
@@ -281,6 +236,7 @@
 </head>
 <body>
 
+<div class="theme-container">
     <h2>📍 進階 GPX 路線產生器</h2>
 
     <div class="flex-container">
@@ -324,20 +280,20 @@
     
     <textarea id="coords" oninput="updateMap()" placeholder="請在此輸入或貼上座標，格式如：&#10;60.12287000, 11.46263700&#10;60.12063900, 11.46123300"></textarea>
     
-    <div id="mainInfoDisplay" style="margin-top: 8px; font-size: 14px; color: #8e44ad; font-weight: bold; min-height: 20px;"></div>
+    <div id="mainInfoDisplay" style="margin-top: 8px; font-size: 14px; color: #555555; font-weight: bold; min-height: 20px;"></div>
     
     <div id="suggestedNameContainer" style="margin-top: 8px; font-size: 14px; display: none; align-items: center; gap: 6px; flex-wrap: wrap;">
-        <span style="font-weight:bold; color:#2c3e50;">💡 建議檔名設定：</span>
+        <span style="font-weight:bold; color:#222222;">💡 建議檔名：</span>
         
-        <select id="prefixSelect" onchange="updateSuggestedName()" style="padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc; font-weight:bold; color:#333; outline: none; cursor: pointer;">
+        <select id="prefixSelect" onchange="updateSuggestedName()" style="width:auto; padding: 2px 4px;">
             <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
             <option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option>
             <option value="8">8</option><option value="9">9</option>
         </select>
         
-        <span style="font-size:13px; color:#7f8c8d; margin-left: 2px;">編號:</span>
+        <span style="font-size:13px; color:#555555; margin-left: 2px;">編號:</span>
         
-        <select id="suffixSelect" onchange="updateSuggestedName()" style="padding: 2px 4px; border-radius: 4px; border: 1px solid #ccc; font-weight:bold; color:#333; outline: none; cursor: pointer;">
+        <select id="suffixSelect" onchange="updateSuggestedName()" style="width:auto; padding: 2px 4px;">
             <option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option>
             <option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option>
             <option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option>
@@ -346,24 +302,25 @@
             <option value="20">20</option>
         </select>
 
-        <span id="suggestedNameText" style="user-select: all; background: #ecf0f1; padding: 4px 8px; border-radius: 4px; font-family: monospace; color: #e67e22; font-weight: bold; margin-left: 5px;"></span>
+        <span id="suggestedNameText" style="user-select: all; background: #F0F0F0; padding: 4px 8px; border-radius: 4px; font-family: monospace; color: #E3000F; font-weight: bold; margin-left: 5px;"></span>
         
-        <button onclick="copySuggestedName()" style="width: auto; padding: 4px 8px; margin: 0; background: #34495e; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight:bold;">📋 複製</button>
-        <button onclick="applySuggestedName()" style="width: auto; padding: 4px 8px; margin: 0; background: #27ae60; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight:bold;">✍️ 套用</button>
+        <button onclick="copySuggestedName()" style="width: auto; padding: 4px 8px; margin: 0; background: #222222; color: white; font-size: 12px;">📋 複製</button>
+        <button onclick="applySuggestedName()" style="width: auto; padding: 4px 8px; margin: 0; background: #555555; color: white; font-size: 12px;">✍️ 套用</button>
     </div>
 
     <button class="btn-preview" onclick="openMapModal()">🗺️ 預覽地圖與互動編輯</button>
     
     <div style="display: flex; gap: 10px; margin-top: 15px;">
-        <button class="btn-download" style="margin-top: 0; flex: 1;" onclick="generateAndDownloadGPX()">⬇️ 產生並下載 GPX 檔案</button>
-        <button class="btn-download btn-txt" style="margin-top: 0; flex: 1;" onclick="downloadTXT()">💾 下載保存座標 (.txt)</button>
+        <button class="btn-download" style="margin-top: 0; flex: 1;" onclick="generateAndDownloadGPX()">⬇️ 產生並下載 GPX</button>
+        <button class="btn-download btn-txt" style="margin-top: 0; flex: 1;" onclick="downloadTXT()">💾 下載座標 (.txt)</button>
     </div>
+</div>
 
     <!-- 浮動地圖視窗 (Modal) -->
     <div id="mapModal" class="modal-overlay" onclick="closeMapModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
             <span class="close-btn" onclick="closeMapModal()">&times;</span>
-            <h3 style="margin-top: 0; color: #2c3e50; margin-bottom: 8px;">🗺️ 預覽與互動編輯</h3>
+            <h3 style="margin-top: 0; color: #E3000F; margin-bottom: 8px;">🗺️ 預覽與互動編輯</h3>
             
             <!-- 路線與時速列：手機上九宮格 -->
             <div class="action-bar-top">
@@ -380,17 +337,17 @@
                 </div>
                 
                 <div class="speed-control">
-                    <span style="font-size: 13px; color: #7f8c8d; font-weight:bold;">時速:</span>
+                    <span style="font-size: 13px; color: #555555; font-weight:bold;">時速:</span>
                     <input type="number" id="modalSpeed" value="19" min="1" max="100" oninput="syncInputs('speed', 'modal')">
-                    <span style="font-size: 13px; color: #7f8c8d; font-weight:bold;">km/h</span>
+                    <span style="font-size: 13px; color: #555555; font-weight:bold;">km/h</span>
                 </div>
             </div>
 
             <!-- 附屬功能：手機上精緻 3x2 方塊陣列 -->
             <div class="action-bar-tools">
-                <button id="btnS2Grid" class="btn-action-small" style="background-color: #9b59b6;" onclick="toggleS2Grid()">🌐 網格</button>
-                <button id="btnMapClickAdd" class="btn-action-small" style="background-color: #34495e;" onclick="toggleMapClickAdd()">🖱️ 新增</button>
-                <button id="btnEditMode" class="btn-action-small" style="background-color: #27ae60;" onclick="toggleEditMode()">✏️ 修改</button>
+                <button id="btnS2Grid" class="btn-action-small" onclick="toggleS2Grid()">🌐 網格</button>
+                <button id="btnMapClickAdd" class="btn-action-small" onclick="toggleMapClickAdd()">🖱️ 新增</button>
+                <button id="btnEditMode" class="btn-action-small" onclick="toggleEditMode()">✏️ 修改</button>
                 <button class="btn-action-small btn-optimize" onclick="optimizeRoute()">✨ 最佳化</button>
                 <button id="btnUndoOpt" class="btn-action-small btn-undo-opt" onclick="undoOptimize()" style="display: none;">↩️ 取消</button>
                 <button class="btn-action-small btn-reverse" onclick="reverseRoute()">🔁 反轉</button>
@@ -407,7 +364,7 @@
             <div id="map"></div>
             
             <div style="display: flex; gap: 10px; margin-top: auto;">
-                <button class="btn-download" style="margin-top: 0; flex: 1;" onclick="generateAndDownloadGPX()">⬇️ 產生並下載</button>
+                <button class="btn-download" style="margin-top: 0; flex: 1; background-color: #E3000F;" onclick="generateAndDownloadGPX()">⬇️ 產生並下載</button>
             </div>
         </div>
     </div>
@@ -567,9 +524,9 @@
             const diff = targetOffset - taipeiOffset;
             
             let diffText = "";
-            if (diff > 0) diffText = `比台北 <span style="color:#d35400; font-weight:bold;">快 ${diff} 小時</span>`;
-            else if (diff < 0) diffText = `比台北 <span style="color:#27ae60; font-weight:bold;">慢 ${Math.abs(diff)} 小時</span>`;
-            else diffText = `與台北 <span style="color:#2980b9; font-weight:bold;">無時差</span>`;
+            if (diff > 0) diffText = `比台北 <span style="color:#E3000F; font-weight:bold;">快 ${diff} 小時</span>`;
+            else if (diff < 0) diffText = `比台北 <span style="color:#555555; font-weight:bold;">慢 ${Math.abs(diff)} 小時</span>`;
+            else diffText = `與台北 <span style="color:#222222; font-weight:bold;">無時差</span>`;
 
             infoDisplayString = `📍 ${locationString} ｜ 🌍 時區: <strong>${tzName}</strong> ( UTC${targetOffset >= 0 ? '+' : ''}${targetOffset} ) ｜ ${diffText}`;
             
@@ -728,6 +685,7 @@
             }
         }
 
+        // --- 修正 GPX 讀取邏輯 (解決點位翻倍 Bug) ---
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -744,14 +702,29 @@
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
                 let extractedCoords = [];
-                ['wpt', 'trkpt', 'rtept'].forEach(tag => {
-                    const elements = xmlDoc.getElementsByTagName(tag);
+                
+                // 幫助函式：提取特定標籤的座標
+                const extractTags = (tagName) => {
+                    let coords = [];
+                    const elements = xmlDoc.getElementsByTagName(tagName);
                     for (let i = 0; i < elements.length; i++) {
                         const lat = elements[i].getAttribute('lat');
                         const lon = elements[i].getAttribute('lon');
-                        if (lat && lon) extractedCoords.push(`${parseFloat(lat).toFixed(8)}, ${parseFloat(lon).toFixed(8)}`);
+                        if (lat && lon) coords.push(`${parseFloat(lat).toFixed(8)}, ${parseFloat(lon).toFixed(8)}`);
                     }
-                });
+                    return coords;
+                };
+
+                // 優先級：trkpt (軌跡) > wpt (圖釘) > rtept (航線)
+                // 這樣就不會同時讀取 trkpt 跟 wpt 導致點位兩倍
+                extractedCoords = extractTags('trkpt');
+                if (extractedCoords.length === 0) {
+                    extractedCoords = extractTags('wpt');
+                }
+                if (extractedCoords.length === 0) {
+                    extractedCoords = extractTags('rtept');
+                }
+
                 if (extractedCoords.length > 0) {
                     saveHistory();
                     coordsBeforeOptimization = null;
@@ -760,8 +733,12 @@
                     document.getElementById('coords').value = extractedCoords.join('\n') + '\n';
                     updateMap();
                     alert(`✅ 成功讀取並提取了 ${extractedCoords.length} 個座標點！`);
-                } else alert('⚠️ 在此 GPX 檔案中找不到任何座標點。');
-            } catch (error) { alert('⚠️ 檔案解析失敗，請確認這是一個有效的 GPX 檔案。'); }
+                } else {
+                    alert('⚠️ 在此 GPX 檔案中找不到任何有效座標點。');
+                }
+            } catch (error) { 
+                alert('⚠️ 檔案解析失敗，請確認這是一個有效的 GPX 檔案。'); 
+            }
         }
 
         function parseCoordinates() {
@@ -804,14 +781,14 @@
                 }
 
                 let typeLabel = ''; let bgColor = '';
-                if (step.type === 'direct') { typeLabel = '📍 直連'; bgColor = '#3498db'; }
-                else if (step.type === 'zigzag') { typeLabel = '🌸 Z字'; bgColor = '#9b59b6'; }
-                else if (step.type === 'triangle') { typeLabel = '🔺 三角'; bgColor = '#e67e22'; }
-                else if (step.type === 'circle') { typeLabel = '⭕ 繞圈'; bgColor = '#e84393'; }
-                else if (step.type === 'straight') { typeLabel = '➖ 完整直線'; bgColor = '#1abc9c'; }
-                else if (step.type === 'qi') { typeLabel = '〰️ 走ㄑ'; bgColor = '#8e44ad'; }
-                else if (step.type === 'scan') { typeLabel = '🎯 螺旋掃描'; bgColor = '#f39c12'; }
-                else if (step.type === 'gridScan') { typeLabel = '🕸️ 格柵掃描'; bgColor = '#16a085'; }
+                if (step.type === 'direct') { typeLabel = '📍 直連'; bgColor = '#222222'; }
+                else if (step.type === 'zigzag') { typeLabel = '🌸 Z字'; bgColor = '#555555'; }
+                else if (step.type === 'triangle') { typeLabel = '🔺 三角'; bgColor = '#555555'; }
+                else if (step.type === 'circle') { typeLabel = '⭕ 繞圈'; bgColor = '#E3000F'; }
+                else if (step.type === 'straight') { typeLabel = '➖ 完整直線'; bgColor = '#555555'; }
+                else if (step.type === 'qi') { typeLabel = '〰️ 走ㄑ'; bgColor = '#555555'; }
+                else if (step.type === 'scan') { typeLabel = '🎯 螺旋掃描'; bgColor = '#E3000F'; }
+                else if (step.type === 'gridScan') { typeLabel = '🕸️ 格柵掃描'; bgColor = '#222222'; }
 
                 let stepDesc = `${typeLabel} (步驟 ${stepIndex + 1}${step.reverse ? ' 反向' : ''})`;
 
@@ -1240,8 +1217,9 @@
             });
 
             if (result.length > 0) {
-                result[0].bgColor = '#2ecc71';
-                if (result.length > 1) result[result.length - 1].bgColor = '#e74c3c';
+                // 起點與終點使用高對比辨識度
+                result[0].bgColor = '#005CFF'; 
+                if (result.length > 1) result[result.length - 1].bgColor = '#E3000F';
             }
             return result;
         }
@@ -1282,10 +1260,10 @@
             editModeEnabled = !editModeEnabled;
             const btn = document.getElementById('btnEditMode');
             if (editModeEnabled) {
-                btn.style.backgroundColor = '#d35400';
+                btn.style.backgroundColor = '#C0000C';
                 btn.innerText = '✏️ 關閉修改';
             } else {
-                btn.style.backgroundColor = '#27ae60';
+                btn.style.backgroundColor = '#E3000F';
                 btn.innerText = '✏️ 開啟修改';
             }
             updateMap(); 
@@ -1296,11 +1274,11 @@
             const btn = document.getElementById('btnMapClickAdd');
             const mapContainer = document.getElementById('map');
             if (mapClickAddEnabled) {
-                btn.style.backgroundColor = '#9b59b6';
-                btn.innerText = '🖱️ 關閉點擊新增';
+                btn.style.backgroundColor = '#222222';
+                btn.innerText = '🖱️ 關閉點擊';
                 mapContainer.classList.add('drawing-mode');
             } else {
-                btn.style.backgroundColor = '#34495e';
+                btn.style.backgroundColor = '#555555';
                 btn.innerText = '🖱️ 點擊新增';
                 mapContainer.classList.remove('drawing-mode');
             }
@@ -1325,14 +1303,14 @@
             s2Enabled = !s2Enabled;
             const btn = document.getElementById('btnS2Grid');
             if (s2Enabled) {
-                btn.style.backgroundColor = '#8e44ad';
+                btn.style.backgroundColor = '#222222';
                 btn.innerText = '🌐 關閉網格';
                 if (!s2Layer) s2Layer = L.featureGroup().addTo(map);
                 map.on('moveend', drawS2Grid);
                 map.on('zoomend', drawS2Grid);
                 drawS2Grid();
             } else {
-                btn.style.backgroundColor = '#9b59b6';
+                btn.style.backgroundColor = '#555555';
                 btn.innerText = '🌐 開啟網格';
                 map.off('moveend', drawS2Grid);
                 map.off('zoomend', drawS2Grid);
@@ -1371,7 +1349,7 @@
                     let latlngs = corners.map(c => [c.lat, c.lng]);
                     
                     L.polygon(latlngs, {
-                        color: '#3498db', // 真實藍線網格
+                        color: '#005CFF', // 真實科技藍線網格
                         weight: 2, 
                         fill: false, 
                         interactive: false, 
@@ -1386,7 +1364,7 @@
                         [pos.lat - dLat, pos.lng - dLon],
                         [pos.lat + dLat, pos.lng + dLon]
                     ], {
-                        color: '#3498db', weight: 2, fill: false, interactive: false, className: 's2-grid-layer'
+                        color: '#005CFF', weight: 2, fill: false, interactive: false, className: 's2-grid-layer'
                     }).addTo(s2Layer);
                 }
             });
@@ -1399,7 +1377,7 @@
 
             if (currentRouteType !== 'combo') return;
 
-            let html = '<div style="font-size:14px; font-weight:bold; color:#7f8c8d; margin-bottom:8px;">自訂組合順序：</div><div class="combo-seq-list">';
+            let html = '<div style="font-size:14px; font-weight:bold; color:#222; margin-bottom:8px;">自訂組合順序：</div><div class="combo-seq-list">';
             comboSequence.forEach((step, index) => {
                 let text, bgClass;
                 if (step.type === 'zigzag') { text = '🌸 Z字'; bgClass = 'zigzag'; }
@@ -1411,7 +1389,7 @@
                 else if (step.type === 'gridScan') { text = '🕸️ 格柵'; bgClass = 'gridScan'; }
                 else { text = '📍 直連'; bgClass = ''; }
                 
-                if (step.reverse) text += ' <span style="color:#ffeb3b;">(反向)</span>';
+                if (step.reverse) text += ' <span style="color:#FFF;">(反向)</span>';
                 
                 html += `
                     <div class="combo-badge ${bgClass}">
@@ -1420,7 +1398,7 @@
                         <div class="combo-badge-del" onclick="removeComboStep(${index})" title="移除此步驟">×</div>
                     </div>`;
                 if (index < comboSequence.length - 1) {
-                    html += `<div style="color:#bdc3c7; font-weight:bold;">➔</div>`;
+                    html += `<div style="color:#CCC; font-weight:bold;">➔</div>`;
                 }
             });
             
@@ -1603,7 +1581,7 @@
                 statsDiv.innerHTML = `⏱️ 預估耗時: <span class="stat-highlight">約 ${timeMinutes} 分鐘</span> <span class="stat-sub">(總距離: ${totalDistance.toFixed(2)} 公里, 時速: ${speedKmh} km/h)</span>`;
                 
                 if (infoDisplayString) {
-                    statsDiv.innerHTML += `<div id="infoDisplayLabel" style="margin-top: 6px; font-size: 14px; color: #8e44ad;">${infoDisplayString}</div>`;
+                    statsDiv.innerHTML += `<div id="infoDisplayLabel" style="margin-top: 6px; font-size: 14px; color: #222222;">${infoDisplayString}</div>`;
                 }
             }
 
@@ -1613,13 +1591,13 @@
 
             if (latlngs.length > 0) {
                 // 強制設為 interactive: false 確保繪製模式點擊不會被軌跡吃掉
-                polyline = L.polyline(latlngs, {color: '#27ae60', weight: 4, opacity: 0.8, interactive: false}).addTo(map);
+                polyline = L.polyline(latlngs, {color: '#222222', weight: 4, opacity: 0.8, interactive: false}).addTo(map);
                 
                 latlngs.forEach((latlng, index) => {
                     const ptMeta = finalPointsMeta[index];
                     const pointNumber = index + 1;
                     
-                    const iconHtml = `<div class="point-marker" style="background-color: ${ptMeta.bgColor};">${pointNumber}</div>`;
+                    const iconHtml = `<div class="point-marker" style="background-color: ${ptMeta.bgColor}; border-color: rgba(255,255,255,1);">${pointNumber}</div>`;
                     const customIcon = L.divIcon({ className: 'custom-div-icon', html: iconHtml, iconSize: [22, 22], iconAnchor: [11, 11] });
                     const marker = L.marker(latlng, {icon: customIcon, draggable: editModeEnabled}).addTo(map);
 
@@ -1657,9 +1635,9 @@
                     // 將視窗縮小，並加入 autoPan: false 防止地圖亂跳
                     let popupHtml = `
                         <div style="text-align: center; min-width: 110px; padding: 0;">
-                            <div style="margin-bottom: 8px; font-size: 14px; color: #2c3e50;">
+                            <div style="margin-bottom: 8px; font-size: 14px; color: #222222;">
                                 <strong>軌跡點 ${pointNumber}</strong>
-                                <div style="font-size:11px; color:#e67e22; margin-top:2px;">原座標 ${ptMeta.originalIndex + 1}</div>
+                                <div style="font-size:11px; color:#E3000F; margin-top:2px;">原座標 ${ptMeta.originalIndex + 1}</div>
                             </div>
                             <div style="display: flex; gap: 4px; justify-content: center;">
                                 <button class="btn-icon" style="padding: 4px 6px; font-size:14px;" onclick="movePointUp(${ptMeta.originalIndex})" ${ptMeta.originalIndex === 0 ? 'disabled' : ''} title="往前一號">⬆️</button>
@@ -1683,7 +1661,7 @@
                         
                         let midIcon = L.divIcon({ 
                             className: 'custom-div-icon', 
-                            html: `<div style="background-color: #fff; border: 3px solid #3498db; border-radius: 50%; width: 12px; height: 12px; opacity: 0.8; box-shadow: 0 1px 3px rgba(0,0,0,0.5);"></div>`, 
+                            html: `<div style="background-color: #FFFFFF; border: 3px solid #E3000F; border-radius: 50%; width: 12px; height: 12px; opacity: 1; box-shadow: 0 1px 4px rgba(0,0,0,0.3);"></div>`, 
                             iconSize: [12, 12], 
                             iconAnchor: [6, 6] 
                         });
