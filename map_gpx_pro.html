@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>座標分佈視覺化系統 (Pro v11)</title>
+    <title>座標分佈與 GPX 視覺化管理系統 (Pro v12 智慧匯入版)</title>
     
     <!-- 引入 Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -18,7 +18,7 @@
         }
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: #f1f5f9; overflow: hidden; }
         
-        /* --- 頂部導航與收合按鈕 --- */
+        /* --- 頂部導航 --- */
         header { background: #0f172a; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 20; flex-shrink: 0; }
         .header-left { display: flex; align-items: center; gap: 12px; }
         .btn-toggle-sidebar { background: #334155; color: white; border: none; border-radius: 4px; padding: 6px 10px; font-size: 16px; cursor: pointer; transition: 0.2s; }
@@ -27,7 +27,7 @@
         
         .main-container { display: flex; flex: 1; overflow: hidden; position: relative; }
         
-        /* ================= 左側控制面板 ================= */
+        /* --- 左側控制面板 --- */
         .sidebar { width: 490px; padding: 15px; overflow-y: auto; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; z-index: 10; transition: all 0.3s ease; }
         
         .top-actions { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
@@ -67,7 +67,7 @@
         .btn-export-wpt { background: #0891b2; }
         .btn-add-sub { background: white; border: 1px dashed var(--primary); color: var(--primary); width: 100%; padding: 6px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
 
-        /* ================= 右側主地圖與標籤 ================= */
+        /* --- 右側主地圖與標籤 --- */
         #map { flex: 1; background: #e5e7eb; position: relative; }
         .leaflet-custom-div-icon { background: transparent; border: none; }
         
@@ -86,7 +86,7 @@
             max-width: 80%; word-wrap: break-word; text-align: center; backdrop-filter: blur(4px);
         }
 
-        /* ================= 圖片輸出預覽視窗 ================= */
+        /* --- 圖片輸出預覽視窗 --- */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 9999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
         .modal-content { background: white; padding: 20px; border-radius: 12px; width: 95%; max-width: 900px; max-height: 95vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -101,7 +101,7 @@
         .btn-cancel { background: #94a3b8; }
         .btn-confirm { background: var(--primary); font-size: 14px; padding: 10px 20px; }
 
-        /* ================= 手機滿版與展開按鈕 ================= */
+        /* --- 手機滿版與展開按鈕 --- */
         .fab-expand {
             position: fixed; bottom: 30px; right: 20px; width: 55px; height: 55px;
             background: var(--primary); color: white; border: none; border-radius: 50%;
@@ -124,13 +124,12 @@
 </head>
 <body>
 
-<!-- 頂部黑列 -->
 <header>
     <div class="header-left">
         <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="收合控制面板 (進入全螢幕)">☰</button>
         <h1>🗺️ 座標分佈管理系統</h1>
     </div>
-    <span style="font-size: 12px; color: #94a3b8;">Pro v11 Final</span>
+    <span style="font-size: 12px; color: #94a3b8;">Pro v12 Final</span>
 </header>
 
 <div class="main-container">
@@ -148,10 +147,9 @@
     <div id="map"></div>
 </div>
 
-<!-- 右下角專屬展開按鈕 -->
 <button class="fab-expand" onclick="toggleSidebar()" title="展開控制面板設定">☰</button>
 
-<!-- ================= 圖片輸出預覽視窗 ================= -->
+<!-- 圖片輸出預覽視窗 -->
 <div class="modal-overlay" id="exportModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -181,7 +179,6 @@
     </div>
 </div>
 
-<!-- 引入 Leaflet、Turf.js 與 Html2Canvas -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -205,7 +202,6 @@
 
     const labelConfig = { showGpx: true, showFolder: true, showSubName: true };
 
-    // ================= 初始化主地圖 =================
     function initMap() {
         map = L.map('map', { renderer: L.canvas({ padding: 0.5 }) }).setView([23.6, 121], 7);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { crossOrigin: true }).addTo(map);
@@ -213,7 +209,6 @@
         addLabelControl(); addFolder();
     }
 
-    // ================= 懸浮標籤控制選單 =================
     function addLabelControl() {
         L.Control.Labels = L.Control.extend({
             onAdd: function(map) {
@@ -242,13 +237,12 @@
         }
     }
 
-    // ================= 切換滿版模式 =================
     function toggleSidebar() {
         document.body.classList.toggle('is-collapsed');
         setTimeout(() => { map.invalidateSize(); }, 50);
     }
 
-    // ================= 核心：繪製圖層與組合邏輯 =================
+    // ================= 繪圖邏輯 =================
     function drawFeaturesToLayer(targetLayerGroup) {
         targetLayerGroup.clearLayers();
         const allLatLngs = [];
@@ -348,7 +342,7 @@
         }
     }
 
-    // ================= 預覽視窗與無敵手機防裁切邏輯 =================
+    // ================= 預覽視窗與匯出邏輯 =================
     function openExportModal() {
         document.getElementById('exportModal').style.display = 'flex';
         
@@ -430,32 +424,22 @@
         document.body.appendChild(loadingOverlay);
 
         const oldCssText = mapEl.style.cssText;
-        
         mapEl.style.cssText = `width: ${currentExportConfig.w}px; height: ${currentExportConfig.h}px; position: fixed; top: 0; left: 0; transform: none !important; z-index: 99990;`;
         
         exportMap.invalidateSize();
 
         setTimeout(() => {
             html2canvas(mapEl, { 
-                useCORS: true, 
-                allowTaint: false, 
-                scale: 1.5,
-                backgroundColor: '#e5e7eb',
-                logging: false,
-                width: currentExportConfig.w,
-                height: currentExportConfig.h
+                useCORS: true, allowTaint: false, scale: 1.5, backgroundColor: '#e5e7eb', logging: false,
+                width: currentExportConfig.w, height: currentExportConfig.h
             }).then(canvas => {
                 const imgUrl = canvas.toDataURL('image/png');
                 const a = document.createElement('a');
-                
-                // 智慧檔名防呆處理
                 const rawName = document.getElementById('watermarkInput').value.trim();
                 const safeName = rawName ? rawName.replace(/[\\/:*?"<>|]/g, '_') : '地圖輸出';
                 const dateStr = new Date().toISOString().slice(0,10);
-                const fileName = `${safeName}_${dateStr}.png`;
                 
-                a.href = imgUrl; 
-                a.download = fileName;
+                a.href = imgUrl; a.download = `${safeName}_${dateStr}.png`;
                 document.body.appendChild(a); a.click(); document.body.removeChild(a);
             }).catch(err => {
                 alert('擷取失敗！建議使用電腦內建截圖工具。');
@@ -469,31 +453,64 @@
         }, 800);
     }
 
-    // ================= 基礎表單操作與匯出（包含完美的防重複機制） =================
-    function forceRefreshAndRender() {
-        gpxDataList.forEach((g, i) => { if (!g.customId || !g.customId.trim()) g.customId = `G${String(i + 1).padStart(2, '0')}`; });
-        updateGPXUI();
-        document.querySelectorAll('.sub-groups-container').forEach(container => { updateSubGroupLabels(container); });
-        renderMap();
+    // ================= 檔案讀取包裝 (Promise) =================
+    function readFileAsync(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = e => reject(e);
+            reader.readAsText(file);
+        });
     }
 
-    // 🏆 核心：GPX 去重複 (Deduplication) 邏輯
-    function handleGPXUpload(input) {
-        const files = input.files;
+    // ================= 🏆 核心：GPX 批次匯入 (去重複 + 智慧命名) =================
+    async function handleGPXUpload(input) {
+        const files = Array.from(input.files);
         if (files.length === 0) return;
-        Array.from(files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const xmlDoc = new DOMParser().parseFromString(e.target.result, "text/xml");
+
+        // 彈出視窗詢問代號前綴
+        const prefix = prompt("請輸入這批 GPX 檔案的「代號前綴」(例如: A)。\n\n※ 若留白，將直接使用原始檔案名稱當作代號。", "");
+        
+        // 如果使用者按了「取消」
+        if (prefix === null) {
+            input.value = "";
+            return; 
+        }
+
+        const safePrefix = prefix.trim();
+        let currentIdx = 1;
+
+        // 【智慧接續邏輯】尋找系統內已經有的最大編號
+        if (safePrefix !== '') {
+            gpxDataList.forEach(g => {
+                const id = g.customId;
+                if (id.startsWith(safePrefix)) {
+                    // 擷取前綴後面的字串
+                    const numPart = id.substring(safePrefix.length);
+                    // 檢查是不是純數字
+                    if (/^\d+$/.test(numPart)) {
+                        const num = parseInt(numPart, 10);
+                        if (num >= currentIdx) currentIdx = num + 1;
+                    }
+                }
+            });
+        }
+
+        // 依序處理所有選擇的檔案，確保編號順序正確
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            try {
+                const content = await readFileAsync(file);
+                const xmlDoc = new DOMParser().parseFromString(content, "text/xml");
                 
-                // 把所有可能包含座標的標籤全部抓出來
+                // 抓取所有點
                 const allPointsRaw = [
                     ...extractCoords(xmlDoc, "trkpt"), 
                     ...extractCoords(xmlDoc, "rtept"), 
                     ...extractCoords(xmlDoc, "wpt")
                 ];
                 
-                // 利用 Set 進行經緯度過濾，剔除完全重複的點位
+                // 【去重複邏輯】
                 const allPoints = [];
                 const seen = new Set();
                 allPointsRaw.forEach(pt => {
@@ -505,19 +522,34 @@
                 });
 
                 if (allPoints.length > 0) {
-                    const defaultId = `G${String(gpxDataList.length + 1).padStart(2, '0')}`;
+                    // 決定最終代號
+                    let assignedId = "";
+                    if (safePrefix === '') {
+                        // 留白時：拔掉 .gpx 副檔名
+                        assignedId = file.name.replace(/\.[^/.]+$/, "");
+                    } else {
+                        // 兩位數補零
+                        assignedId = safePrefix + String(currentIdx++).padStart(2, '0');
+                    }
+
                     gpxDataList.push({
                         id: 'gpx_' + Date.now() + Math.floor(Math.random()*1000),
-                        customId: defaultId, fileName: file.name, points: allPoints,
-                        visible: true, color: gpxColors[gpxDataList.length % gpxColors.length]
+                        customId: assignedId, 
+                        fileName: file.name, 
+                        points: allPoints,
+                        visible: true, 
+                        color: gpxColors[gpxDataList.length % gpxColors.length]
                     });
-                    updateGPXUI(); renderMap();
                 } else {
                     alert(`檔案 ${file.name} 中找不到有效的經緯度座標！`);
                 }
-            };
-            reader.readAsText(file);
-        });
+            } catch (err) {
+                console.error("檔案讀取失敗", err);
+            }
+        }
+        
+        updateGPXUI(); 
+        renderMap();
         input.value = "";
     }
 
@@ -559,7 +591,7 @@
         } else { section.style.display = 'none'; }
     }
 
-    function updateGPXId(id, newId) { const target = gpxDataList.find(g => g.id === id); if (target) { target.customId = newId.trim() || `G01`; renderMap(); } }
+    function updateGPXId(id, newId) { const target = gpxDataList.find(g => g.id === id); if (target) { target.customId = newId.trim(); renderMap(); } }
     function toggleGPX(id, isVisible) { const target = gpxDataList.find(g => g.id === id); if (target) { target.visible = isVisible; renderMap(); } }
     function deleteGPX(id) { gpxDataList = gpxDataList.filter(g => g.id !== id); updateGPXUI(); renderMap(); }
     function moveGPX(index, direction) {
@@ -568,6 +600,13 @@
         updateGPXUI(); renderMap();
     }
 
+    function forceRefreshAndRender() {
+        updateGPXUI();
+        document.querySelectorAll('.sub-groups-container').forEach(container => { updateSubGroupLabels(container); });
+        renderMap();
+    }
+
+    // ================= 手動分組表單操作 =================
     function moveDOMElement(btn, direction) {
         const el = btn.closest('.folder, .sub-group'), parent = el.parentElement;
         if (direction === -1 && el.previousElementSibling) parent.insertBefore(el, el.previousElementSibling);
