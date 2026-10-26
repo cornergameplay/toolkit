@@ -36,8 +36,10 @@
         
         button.dl-btn { background: #E6A15C; color: #2E5A44; font-size: 16px; padding: 12px; box-shadow: 0 2px 6px rgba(230,161,92,0.3); }
         button.dl-btn:hover { background: #d99047; }
-        button.add-area-btn { background: #E6A15C; color: #2E5A44; width: auto; padding: 8px 20px; font-size: 15px; box-shadow: 0 2px 6px rgba(230,161,92,0.3); }
+        button.add-area-btn { background: #E6A15C; color: #2E5A44; width: auto; padding: 8px 15px; font-size: 14px; box-shadow: 0 2px 6px rgba(230,161,92,0.3); }
         button.add-area-btn:hover { background: #d99047; }
+        button.auto-sort-btn { background: #4A5B63; color: white; width: auto; padding: 8px 15px; font-size: 14px; }
+        button.auto-sort-btn:hover { background: #334046; }
         button.import-btn { margin-top: 10px; padding: 8px; }
         
         button.action-btn { background: #fff; color: #d35400; border: 1px solid #d35400; font-size: 13px; padding: 6px 12px; width: auto; margin-top: 5px; border-radius: 4px; } 
@@ -47,7 +49,7 @@
         .popup-select { width: 100%; padding: 4px; margin-top: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px; }
 
         .batch-controls { background: #E6F0EA; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border: 1px solid #D2B48C; flex-wrap: wrap; gap: 10px; }
-        .list-header-bar { display: flex; justify-content: space-between; align-items: center; margin: 25px 0 15px 0; border-bottom: 2px solid #D2B48C; padding-bottom: 10px; }
+        .list-header-bar { display: flex; justify-content: space-between; align-items: center; margin: 25px 0 15px 0; border-bottom: 2px solid #D2B48C; padding-bottom: 10px; flex-wrap: wrap; gap: 10px; }
         
         .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 15px; }
         .cluster-card { background: #fff; border-top: 5px solid; padding: 12px; border-radius: 8px; box-shadow: 0 2px 10px rgba(46,90,68,0.05); position: relative; display: flex; flex-direction: column; border-left: 1px solid #E6F0EA; border-right: 1px solid #E6F0EA; border-bottom: 1px solid #E6F0EA; }
@@ -76,6 +78,9 @@
         .export-table { width: 100%; border-collapse: collapse; text-align: left; }
         .export-table th, .export-table td { padding: 8px; border-bottom: 1px solid #E6F0EA; }
         .export-table input[type="text"] { width: 100%; border: 1px solid #D2B48C; font-size: 14px; padding: 6px; box-sizing: border-box; }
+
+        /* 地圖數字圖標自訂樣式 */
+        .custom-marker { background: none; border: none; }
     </style>
 </head>
 <body>
@@ -141,7 +146,10 @@
     <!-- 區域清單 -->
     <div class="list-header-bar">
         <h2 style="margin: 0; border: none; font-size: 1.3rem; color: #2E5A44;">📋 區域清單與微調</h2>
-        <button class="add-area-btn" onclick="addEmptyCluster()">➕ 新增空白區域</button>
+        <div style="display: flex; gap: 10px;">
+            <button class="auto-sort-btn" onclick="autoSortClustersByLocation()" title="依照中位數抗干擾演算法自動排序">✨ 依地理位置(北至南)排序</button>
+            <button class="add-area-btn" onclick="addEmptyCluster()">➕ 新增空白區域</button>
+        </div>
     </div>
     <div id="resultArea" class="results-grid"></div>
 </div>
@@ -216,6 +224,7 @@
 </div>
 
 <script>
+    // --- 變數初始化 ---
     const themeColors = ['#D36B5B', '#5A8896', '#6C9A69', '#D9A05B', '#966B8E', '#C28455', '#4A5B63', '#A67358', '#509A8F', '#B36D82'];
     const themeIcons = ['🔴', '🔵', '🟢', '🟡', '🟣', '🟠', '⚫', '🟤', '🔷', '🌸'];
 
@@ -223,45 +232,63 @@
     let clustersMeta = []; 
     let pointIdCounter = 0;
     let clusterIdCounter = 0;
-    
     let tempImportFiles = []; 
+    let map = null;
+    let markerLayers = null;
 
-    let map = L.map('map').setView([23.5, 121], 7);
-    let markerLayers = L.layerGroup().addTo(map);
-    
-    // 🌍 換回官方 OpenStreetMap，適合 GitHub Pages 部署使用
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19
-    }).addTo(map);
+    // --- DOM 載入與事件綁定 (確保拖曳點擊不會因任何錯誤失效) ---
+    document.addEventListener("DOMContentLoaded", () => {
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => { 
+            document.body.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }); 
+            dropZone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }); 
+        });
+        
+        dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e => processFilesAsync(e.dataTransfer.files));
+        fileInput.addEventListener('change', e => processFilesAsync(e.target.files));
 
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    dropZone.addEventListener('click', () => fileInput.click());
-    
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => { document.body.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }); dropZone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }); });
-    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', e => processFilesAsync(e.dataTransfer.files));
-    fileInput.addEventListener('change', e => processFilesAsync(e.target.files));
+        // 初始化地圖
+        try {
+            map = L.map('map').setView([23.5, 121], 7);
+            markerLayers = L.layerGroup().addTo(map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(map);
+        } catch (e) {
+            console.error("地圖載入異常", e);
+        }
+    });
 
+    // --- 檔案處理 ---
     async function processFilesAsync(files) {
-        dropZone.classList.remove('dragover');
+        if (!files || files.length === 0) return;
+        document.getElementById('dropZone').classList.remove('dragover');
         tempImportFiles = [];
         let totalPts = 0;
         
         for (let file of Array.from(files)) {
-            let text = await file.text();
-            let ext = file.name.split('.').pop().toLowerCase();
-            let parsed = (ext === 'gpx') ? parseGPXRaw(text) : parseTextRaw(text);
-            
-            if (parsed.length > 0) {
-                tempImportFiles.push({ fileName: file.name.replace(`.${ext}`, ''), points: parsed });
-                totalPts += parsed.length;
+            try {
+                let text = await file.text();
+                let ext = file.name.split('.').pop().toLowerCase();
+                let parsed = (ext === 'gpx') ? parseGPXRaw(text) : parseTextRaw(text);
+                
+                if (parsed.length > 0) {
+                    tempImportFiles.push({ fileName: file.name.replace(`.${ext}`, ''), points: parsed });
+                    totalPts += parsed.length;
+                }
+            } catch (err) {
+                console.error("檔案讀取錯誤", err);
             }
         }
         
-        fileInput.value = '';
+        document.getElementById('fileInput').value = '';
         if (tempImportFiles.length > 0) {
             openImportModal(totalPts);
         } else {
@@ -269,7 +296,7 @@
         }
     }
 
-    function processManualPoints() {
+    window.processManualPoints = function() {
         const text = document.getElementById('manualInput').value;
         if (!text.trim()) return;
         let parsed = parseTextRaw(text);
@@ -280,7 +307,7 @@
         } else { 
             alert("未識別到有效座標 (需包含 緯度,經度)！"); 
         }
-    }
+    };
 
     function parseGPXRaw(xmlText) {
         const parser = new DOMParser();
@@ -307,6 +334,7 @@
         return pts;
     }
 
+    // --- 匯入處理中心 UI ---
     function openImportModal(totalPts) {
         document.getElementById('importFileCount').innerText = tempImportFiles.length;
         document.getElementById('importTotalCount').innerText = totalPts;
@@ -315,10 +343,16 @@
         document.getElementById('importModal').style.display = 'flex';
     }
     
-    function closeImportModal() { document.getElementById('importModal').style.display = 'none'; tempImportFiles = []; }
-    function toggleImportSub(show) { document.getElementById('importAiSettings').style.display = show ? 'block' : 'none'; }
+    window.closeImportModal = function() { 
+        document.getElementById('importModal').style.display = 'none'; 
+        tempImportFiles = []; 
+    };
+    
+    window.toggleImportSub = function(show) { 
+        document.getElementById('importAiSettings').style.display = show ? 'block' : 'none'; 
+    };
 
-    function executeImport() {
+    window.executeImport = function() {
         let mode = document.querySelector('input[name="importMode"]:checked').value;
         let assignedPts = [];
         let allImportedPts = tempImportFiles.flatMap(fileObj => fileObj.points);
@@ -391,10 +425,11 @@
 
         allPoints = allPoints.concat(assignedPts);
         closeImportModal();
-        updateSystem(true);
+        updateSystem(true); // 大量匯入時允許自動縮放
         alert(`成功匯入並分配了 ${assignedPts.length} 筆座標！`);
-    }
+    };
 
+    // --- 區域編輯功能 ---
     window.syncClusterText = function(cId) {
         let textarea = document.getElementById(`txt-${cId}`);
         let newPts = parseTextRaw(textarea.value);
@@ -457,6 +492,7 @@
         clustersMeta.push({ id: id, shortName: defaultName, finalName: defaultName, selected: true, color: themeColors[clustersMeta.length % 10], icon: themeIcons[clustersMeta.length % 10] });
         return id;
     }
+    
     window.deleteCluster = (id) => {
         if(confirm("確定刪除此區？\n內部點位將被退回至「不使用(已排除)」區。")) {
             let meta = clustersMeta.find(m => m.id === id);
@@ -467,42 +503,71 @@
         }
     };
     
+    // ✨ 全新地理位置自動排序 (中位數抗干擾)
+    window.autoSortClustersByLocation = () => {
+        if(clustersMeta.length === 0) return;
+        
+        clustersMeta.forEach(m => {
+            let pts = allPoints.filter(p => p.clusterId === m.id);
+            if (pts.length === 0) {
+                m._medianLat = -9999;
+            } else {
+                let lats = pts.map(p => p.lat).sort((a, b) => a - b);
+                let half = Math.floor(lats.length / 2);
+                m._medianLat = lats.length % 2 !== 0 ? lats[half] : (lats[half - 1] + lats[half]) / 2.0;
+            }
+        });
+
+        clustersMeta.sort((a, b) => b._medianLat - a._medianLat);
+        clustersMeta.forEach((m, i) => { m.color = themeColors[i % 10]; m.icon = themeIcons[i % 10]; });
+
+        updateSystem(false); // 排序不亂縮放
+    };
+
+    // --- 系統繪製核心 ---
     function updateSystem(autoZoom = true) {
         document.getElementById('totalPointsCount').innerText = allPoints.filter(p => p.clusterId >= 0).length;
         document.getElementById('totalClustersCount').innerText = clustersMeta.length;
-        markerLayers.clearLayers();
+        if(markerLayers) markerLayers.clearLayers();
+        
         const resultArea = document.getElementById('resultArea');
         resultArea.innerHTML = '';
         let bounds = [];
 
-        clustersMeta.forEach(meta => {
+        // 依序渲染有效花田 (傳遞 listIndex 以產生編號)
+        clustersMeta.forEach((meta, index) => {
             let pts = allPoints.filter(p => p.clusterId === meta.id);
-            renderCard(pts, meta, false);
+            renderCard(pts, meta, false, index);
             pts.forEach(p => bounds.push([p.lat, p.lng]));
         });
 
+        // 渲染排除區 (isUnused = true)
         let unusedPoints = allPoints.filter(p => p.clusterId === -1);
-        if (unusedPoints.length > 0) renderCard(unusedPoints, { id: -1, shortName: '不使用 (已排除)', color: '#bdc3c7', icon: '⚪' }, true);
+        if (unusedPoints.length > 0) {
+            renderCard(unusedPoints, { id: -1, shortName: '不使用 (已排除)' }, true, -1);
+            unusedPoints.forEach(p => bounds.push([p.lat, p.lng]));
+        }
         
-        if (bounds.length > 0 && autoZoom) {
+        if (bounds.length > 0 && autoZoom && map) {
             map.fitBounds(L.latLngBounds(bounds).pad(0.1));
         }
     }
 
-    function renderCard(points, meta, isUnused) {
+    function renderCard(points, meta, isUnused, listIndex) {
         const container = document.getElementById('resultArea');
         const latlngList = points.map(p => `${p.lat}, ${p.lng}`).join('\n');
         let headerHtml = '';
         
         if (isUnused) {
-            headerHtml = `<h3 style="margin:0; font-size:15px; color:#7f8c8d;">${meta.icon} ${meta.shortName} <span class="badge" style="background:#fff;">${points.length} 點</span></h3>
+            headerHtml = `<h3 style="margin:0; font-size:15px; color:#7f8c8d;">⚪ X. ${meta.shortName} <span class="badge" style="background:#fff; border-color:#bdc3c7; color:#7f8c8d;">${points.length} 點</span></h3>
                           <div style="font-size:11px; color:#d35400; margin-top:3px;">※ 於下方刪除並更新將徹底抹除座標</div>`;
         } else {
             let chk = meta.selected ? "checked" : "";
+            // 卡片標題加入動態編號
             headerHtml = `
                 <div class="card-header">
                     <input type="checkbox" onchange="clustersMeta.find(m=>m.id==${meta.id}).selected=this.checked" ${chk}>
-                    <span>${meta.icon}</span>
+                    <span style="font-size:15px; font-weight:bold; color:${meta.color};">${meta.icon} ${listIndex + 1}.</span>
                     <input type="text" class="card-title-input" style="color:${meta.color};" value="${meta.shortName}" onchange="let m=clustersMeta.find(c=>c.id==${meta.id}); m.shortName=this.value; m.finalName=this.value;">
                     <span class="badge" style="background:${points.length===0?'#Fceceb':'#FDFBF7'};">${points.length} 點</span>
                     <div style="margin-left:auto; display:flex; gap:1px;">
@@ -515,7 +580,7 @@
 
         const card = document.createElement('div');
         card.className = isUnused ? "cluster-card card-gray" : "cluster-card";
-        card.style.borderColor = meta.color;
+        card.style.borderColor = isUnused ? '#bdc3c7' : meta.color;
         
         let buttonRowHtml = '';
         if (isUnused) {
@@ -539,14 +604,26 @@
         `;
         container.appendChild(card);
 
+        // ✨ 繪製實心數字地圖標記
         points.forEach(p => {
             let popupHtml = `<div style="font-size:13px;"><b>🔖 名稱：</b> ${p.name}<br><b>📍 座標：</b> ${p.lat}, ${p.lng}<hr style="margin:5px 0; border-color:#E6F0EA;"><b>移動至：</b><select class="popup-select" onchange="let pt=allPoints.find(x=>x.id==${p.id}); pt.clusterId=parseInt(this.value); updateSystem(false);">`;
-            clustersMeta.forEach(m => { popupHtml += `<option value="${m.id}" ${m.id===p.clusterId?'selected':''}>${m.icon} ${m.shortName}</option>`; });
-            popupHtml += `<option value="-1" ${p.clusterId===-1?'selected':''}>⚪ 不使用 (排除)</option></select></div>`;
-            L.circleMarker([p.lat, p.lng], { radius: 7, fillColor: meta.color, color: "#fff", weight: 2, fillOpacity: 0.9 }).bindPopup(popupHtml).addTo(markerLayers);
+            clustersMeta.forEach((m, idx) => { popupHtml += `<option value="${m.id}" ${m.id===p.clusterId?'selected':''}>${m.icon} ${idx + 1}. ${m.shortName}</option>`; });
+            popupHtml += `<option value="-1" ${p.clusterId===-1?'selected':''}>⚪ X. 不使用 (排除)</option></select></div>`;
+            
+            let iconText = isUnused ? 'X' : (listIndex + 1);
+            let iconBgColor = isUnused ? '#bdc3c7' : meta.color;
+            let customIcon = L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="background-color:${iconBgColor}; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #fff; color:#fff; font-weight:bold; font-size:12px; box-shadow:0 2px 4px rgba(0,0,0,0.3);">${iconText}</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            });
+
+            if(markerLayers) L.marker([p.lat, p.lng], { icon: customIcon }).bindPopup(popupHtml).addTo(markerLayers);
         });
     }
 
+    // --- 下載與匯出功能 ---
     window.downloadSingle = function(cId, format) {
         let meta = clustersMeta.find(m => m.id === cId);
         let pts = allPoints.filter(p => p.clusterId === cId);
@@ -623,6 +700,7 @@
         tbody.innerHTML = toExport.map(m => `<tr><td>${m.icon}</td><td style="color:#555;font-size:13px;">${m.shortName}</td><td><input type="text" value="${m.finalName}" onchange="clustersMeta.find(c=>c.id==${m.id}).finalName=this.value"></td><td>${allPoints.filter(p=>p.clusterId===m.id).length}</td></tr>`).join('');
         document.getElementById('exportModal').style.display = 'flex';
     };
+    
     window.closeExportModal = () => document.getElementById('exportModal').style.display = 'none';
     
     window.generateZIP = () => {
