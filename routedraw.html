@@ -76,9 +76,15 @@
         .header-row label { margin: 0; }
         
         .header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-        .btn-upload, .btn-dedupe, .btn-recognize { width: auto; padding: 6px 12px; margin: 0; background-color: #555555; }
+        .btn-upload, .btn-dedupe { width: auto; padding: 6px 12px; margin: 0; background-color: #555555; }
         .btn-paste { width: auto; padding: 6px 12px; margin: 0; background-color: #E3000F; }
-        .btn-clear-all { width: auto; padding: 6px 12px; margin: 0; background-color: #222222; }
+        .btn-clear-all { width: auto; padding: 6px 12px; margin: 0; background-color: #555555; }
+        .btn-optimize-main { width: auto; padding: 6px 12px; margin: 0; background-color: #222222; color: white; font-size: 14px;}
+        .btn-optimize-main:hover { background-color: #000000; }
+        
+        /* 重新辨識按鈕新樣式 (配合建議檔名列) */
+        .btn-recognize { width: auto; padding: 4px 8px; margin: 0; background-color: #555555; color: white; border: none; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .btn-recognize:hover { background-color: #333333; }
 
         .point-marker {
             background-color: #222222; color: white; border-radius: 50%;
@@ -244,9 +250,12 @@
             <label for="routeName">路徑名稱 (將作為存檔檔名):</label>
             <input type="text" id="routeName" value="" placeholder="例如：大安森林公園種花">
         </div>
-        <div class="flex-item">
+        <div class="flex-item" style="display: flex; flex-direction: column; justify-content: center;">
             <label for="speed">模擬時速 (km/h):</label>
-            <input type="number" id="speed" value="19" min="1" max="100" oninput="syncInputs('speed', 'main')">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="number" id="speed" value="19" min="1" max="100" style="width: 80px;" oninput="syncInputs('speed', 'main')">
+                <span id="mainRouteStats" style="font-size: 13px; color: #E3000F; font-weight: 800;"></span>
+            </div>
         </div>
     </div>
 
@@ -267,14 +276,16 @@
     <div id="comboBuilderMain" class="combo-builder"></div>
 
     <div class="header-row">
-        <label for="coords">輸入經緯度座標 (或上傳 GPX 提取):</label>
+        <!-- 第1點確認：文字與按鈕名稱精簡 -->
+        <label for="coords">輸入座標 (或讀取 GPX):</label>
         <div class="header-actions">
             <button class="btn-paste" onclick="pasteButtonAction()" title="從剪貼簿貼上座標內容">📋 貼上</button>
             <button class="btn-dedupe" onclick="removeDuplicateCoordinates()" title="自動移除重複的點位">🔍 移除重複</button>
-            <button class="btn-recognize" onclick="forceRecognizeLocation()" title="強制重新請求地理位置與時區">🔄 重新辨識</button>
+            <button class="btn-optimize-main" onclick="optimizeRoute()" title="自動計算極限最短耗時路徑">✨ 最佳化</button>
             <button class="btn-clear-all" onclick="clearAllCoordinates()" title="清空所有座標">🗑️ 清空</button>
             <input type="file" id="gpxFile" accept=".gpx" style="display: none;" onchange="handleFileUpload(event)">
-            <button class="btn-upload" onclick="document.getElementById('gpxFile').click()">📁 讀取 GPX</button>
+            <!-- 讀取按鈕精簡 -->
+            <button class="btn-upload" onclick="document.getElementById('gpxFile').click()">📁 讀取</button>
         </div>
     </div>
     
@@ -293,14 +304,10 @@
         
         <span style="font-size:13px; color:#555555; margin-left: 2px;">編號:</span>
         
-        <select id="suffixSelect" onchange="updateSuggestedName()" style="width:auto; padding: 2px 4px;">
-            <option value="00">00</option><option value="01">01</option><option value="02">02</option><option value="03">03</option>
-            <option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option>
-            <option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option>
-            <option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option>
-            <option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option>
-            <option value="20">20</option>
-        </select>
+        <input type="number" id="suffixSelect" value="00" min="0" max="99" onchange="this.value = Math.max(0, parseInt(this.value || 0)).toString().padStart(2, '0'); updateSuggestedName();" style="width: 55px; padding: 2px 4px; border: 1px solid #CCCCCC; border-radius: 4px; font-weight: bold; color: #222222; outline: none; text-align: center; font-family: monospace; font-size: 14px;">
+
+        <!-- 第2點確認：重新辨識按鈕完美搬家到編號右方 (選項A) -->
+        <button class="btn-recognize" onclick="forceRecognizeLocation()" title="強制重新請求地理位置與時區">🔄 重新辨識</button>
 
         <span id="suggestedNameText" style="user-select: all; background: #F0F0F0; padding: 4px 8px; border-radius: 4px; font-family: monospace; color: #E3000F; font-weight: bold; margin-left: 5px;"></span>
         
@@ -322,7 +329,6 @@
             <span class="close-btn" onclick="closeMapModal()">&times;</span>
             <h3 style="margin-top: 0; color: #E3000F; margin-bottom: 8px;">🗺️ 預覽與互動編輯</h3>
             
-            <!-- 路線與時速列：手機上九宮格 -->
             <div class="action-bar-top">
                 <div class="route-toggle-group">
                     <button id="btnDirect" class="toggle-btn active" onclick="setRouteType('direct')">📍 直連</button>
@@ -343,7 +349,6 @@
                 </div>
             </div>
 
-            <!-- 附屬功能：手機上精緻 3x2 方塊陣列 -->
             <div class="action-bar-tools">
                 <button id="btnS2Grid" class="btn-action-small" onclick="toggleS2Grid()">🌐 網格</button>
                 <button id="btnMapClickAdd" class="btn-action-small" onclick="toggleMapClickAdd()">🖱️ 新增</button>
@@ -379,14 +384,12 @@
         let historyStack = []; 
         let coordsBeforeOptimization = null;
 
-        // Interactive States
         let s2Enabled = false;
         let s2Layer = null;
         let mapClickAddEnabled = false;
         let isDragging = false;
         let editModeEnabled = false;
 
-        // 地理位置與時區變數
         let infoDisplayString = "";
         let lastCheckedCoord = null;
         let currentTargetOffset = null; 
@@ -411,7 +414,6 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        // 全局操作歷史紀錄
         function saveHistory() {
             const currentVal = document.getElementById('coords').value;
             historyStack.push(currentVal);
@@ -433,7 +435,6 @@
             if (btnUndo) btnUndo.disabled = historyStack.length === 0;
         }
 
-        // --- 取得並換算地理位置與時區 (嚴格繁英分離版) ---
         async function checkLocationInfo(lat, lon) {
             if (lastCheckedCoord && Math.abs(lastCheckedCoord.lat - lat) < 0.1 && Math.abs(lastCheckedCoord.lon - lon) < 0.1) {
                 updateSuggestedName();
@@ -456,7 +457,6 @@
 
                 if (geoDataTW && geoDataTW.address) {
                     const addrTW = geoDataTW.address;
-                    
                     if (addrTW.country_code) {
                         try {
                             locCountry = new Intl.DisplayNames(['zh-TW'], {type: 'region'}).of(addrTW.country_code.toUpperCase());
@@ -466,7 +466,6 @@
                     } else {
                         locCountry = addrTW.country || '';
                     }
-                    
                     locState = addrTW.state || addrTW.province || '';
                 }
                 
@@ -568,7 +567,8 @@
             }
 
             const prefix = document.getElementById('prefixSelect') ? document.getElementById('prefixSelect').value : "0";
-            const suffix = document.getElementById('suffixSelect') ? document.getElementById('suffixSelect').value : "00";
+            const suffixInput = document.getElementById('suffixSelect');
+            const suffix = suffixInput ? suffixInput.value.padStart(2, '0') : "00";
 
             const nameStr = `${prefix}_Corn_${locCity}_${suffix}_${timeDiffStr}_${pointCount}朵_${modeName}_${locCountry}${locState}`;
             
@@ -685,7 +685,7 @@
             }
         }
 
-        // --- 修正 GPX 讀取邏輯 (解決點位翻倍 Bug) ---
+        // --- 修正 GPX 讀取邏輯 (加入嚴謹重置與命名空間穿透) ---
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -693,7 +693,11 @@
             document.getElementById('routeName').value = fileNameWithoutExt;
 
             const reader = new FileReader();
-            reader.onload = function(e) { parseUploadedGPX(e.target.result); event.target.value = ''; };
+            reader.onload = function(e) { 
+                parseUploadedGPX(e.target.result); 
+                // 讀取完畢後清空 input 的 value，確保下次選同一個檔案依然會觸發 onchange
+                document.getElementById('gpxFile').value = ''; 
+            };
             reader.readAsText(file);
         }
 
@@ -703,10 +707,14 @@
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
                 let extractedCoords = [];
                 
-                // 幫助函式：提取特定標籤的座標
+                // 強化版標籤提取器，無懼 GPX 版本或 Namespace 命名空間問題
                 const extractTags = (tagName) => {
                     let coords = [];
-                    const elements = xmlDoc.getElementsByTagName(tagName);
+                    let elements = xmlDoc.getElementsByTagName(tagName);
+                    // 萬一因嚴格命名空間找不到，使用萬用字元提取
+                    if (elements.length === 0) {
+                        elements = xmlDoc.getElementsByTagNameNS("*", tagName);
+                    }
                     for (let i = 0; i < elements.length; i++) {
                         const lat = elements[i].getAttribute('lat');
                         const lon = elements[i].getAttribute('lon');
@@ -715,8 +723,7 @@
                     return coords;
                 };
 
-                // 優先級：trkpt (軌跡) > wpt (圖釘) > rtept (航線)
-                // 這樣就不會同時讀取 trkpt 跟 wpt 導致點位兩倍
+                // 嚴格依照優先級：trkpt (軌跡) > wpt (圖釘) > rtept (航線)
                 extractedCoords = extractTags('trkpt');
                 if (extractedCoords.length === 0) {
                     extractedCoords = extractTags('wpt');
@@ -730,14 +737,16 @@
                     coordsBeforeOptimization = null;
                     const btnUndoOpt = document.getElementById('btnUndoOpt');
                     if(btnUndoOpt) btnUndoOpt.style.display = 'none';
+                    
                     document.getElementById('coords').value = extractedCoords.join('\n') + '\n';
                     updateMap();
                     alert(`✅ 成功讀取並提取了 ${extractedCoords.length} 個座標點！`);
                 } else {
-                    alert('⚠️ 在此 GPX 檔案中找不到任何有效座標點。');
+                    alert('⚠️ 在此 GPX 檔案中找不到任何有效座標點 (trkpt, wpt 或 rtept)。');
                 }
             } catch (error) { 
                 alert('⚠️ 檔案解析失敗，請確認這是一個有效的 GPX 檔案。'); 
+                console.error(error);
             }
         }
 
@@ -1556,6 +1565,11 @@
                 locCountry = ""; locState = ""; locCity = "";
                 const mainInfo = document.getElementById('mainInfoDisplay');
                 if (mainInfo) mainInfo.innerHTML = "";
+                
+                // 清空主頁面的距離與時間
+                const mainStatsDiv = document.getElementById('mainRouteStats');
+                if (mainStatsDiv) mainStatsDiv.innerHTML = "";
+                
                 updateSuggestedName();
                 updateComboUI(); 
             } else {
@@ -1576,12 +1590,23 @@
             const timeHours = totalDistance / speedKmh;
             const timeMinutes = Math.round(timeHours * 60);
 
+            // 更新預覽視窗內的統計數據
             const statsDiv = document.getElementById('routeStats');
             if (statsDiv) {
                 statsDiv.innerHTML = `⏱️ 預估耗時: <span class="stat-highlight">約 ${timeMinutes} 分鐘</span> <span class="stat-sub">(總距離: ${totalDistance.toFixed(2)} 公里, 時速: ${speedKmh} km/h)</span>`;
                 
                 if (infoDisplayString) {
                     statsDiv.innerHTML += `<div id="infoDisplayLabel" style="margin-top: 6px; font-size: 14px; color: #222222;">${infoDisplayString}</div>`;
+                }
+            }
+            
+            // 更新主頁面的同行統計數據
+            const mainStatsDiv = document.getElementById('mainRouteStats');
+            if (mainStatsDiv) {
+                if (points.length > 1) {
+                    mainStatsDiv.innerHTML = `⏱️ 約 ${timeMinutes} 分鐘 (${totalDistance.toFixed(2)} 公里)`;
+                } else {
+                    mainStatsDiv.innerHTML = "";
                 }
             }
 
